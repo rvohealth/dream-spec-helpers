@@ -2,7 +2,12 @@
   "name": "@rvohealth/dream-spec-helpers",
   "version": "0.0.1",
   "description": "dream orm spec helpers",
-  "main": "../dist/src/index.js",
+  "main": "dist/src/index.js",
+  "files": [
+    "tsconfig.json",
+    "src/**/*",
+    "dist/**/*"
+  ],
   "scripts": {
     "build": "echo \"building dream-spec-helpers...\" && rm -rf dist && npx tsc -p ./tsconfig.json",
     "prepack": "yarn build"
