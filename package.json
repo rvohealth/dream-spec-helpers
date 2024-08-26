@@ -1,0 +1,22 @@
+{
+  "name": "@rvohealth/dream-spec-helpers",
+  "version": "0.0.1",
+  "description": "dream orm spec helpers",
+  "main": "../dist/src/index.js",
+  "scripts": {
+    "build": "echo \"building dream-spec-helpers...\" && rm -rf dist && npx tsc -p ./tsconfig.json",
+    "prepack": "yarn build"
+  },
+  "dependencies": {
+    "@types/jest": "^29.5.12",
+    "@types/lodash.sortby": "^4.7.9",
+    "@types/node": "^18.15.11",
+    "@types/pg": "^8.11.3",
+    "jest": "^29.7.0",
+    "lodash.sortby": "^4.7.0",
+    "pg": "^8.11.3",
+    "ts-jest": "^29.1.4",
+    "ts-node": "^10.9.1",
+    "typescript": "^5.0.3"
+  }
+}
