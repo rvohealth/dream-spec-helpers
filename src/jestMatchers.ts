@@ -31,8 +31,10 @@ declare global {
       toEqualCalendarDate(expected: any): jest.CustomMatcherResult
     }
     interface Expect {
-      toMatchDreamModel<T>(expected: T): T
-      toEqualCalendarDate<T>(expected: T): T
+      toMatchDreamModel<T>(expected: T): T;
+      toMatchDreamModels<T>(expected: T): T;
+      toBeWithin<T>(precision: number, expected: T): T;
+      toEqualCalendarDate<T>(expected: T): T;
     }
     interface ExpectExtendMap {
       toMatchDreamModel: OwnMatcher<[expected: any]>

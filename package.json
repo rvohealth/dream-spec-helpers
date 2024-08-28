@@ -1,6 +1,6 @@
 {
   "name": "@rvohealth/dream-spec-helpers",
-  "version": "0.0.2",
+  "version": "0.0.4",
   "description": "dream orm spec helpers",
   "main": "dist/src/index.js",
   "files": [
