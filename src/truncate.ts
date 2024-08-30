@@ -5,14 +5,13 @@ export default async function truncate(DreamApplication: any) {
   // so there is no way to truncate in dev/prod
   if (process.env.NODE_ENV !== 'test') return false
 
-
   const dreamconf = DreamApplication.getOrFail()
   const data = dreamconf.dbCredentials.primary
 
   const client = new Client({
     host: data.host || 'localhost',
     port: data.port,
-    database: data.name,
+    database: getDatabaseName(dreamconf, data.name),
     user: data.user,
     password: data.password,
   })
@@ -36,4 +35,18 @@ $$;
 `
   )
   await client.end()
+}
+
+function getDatabaseName(dreamconf: any, dbName: string): string {
+  return parallelDatabasesEnabled(dreamconf)
+    ? `${dbName}_${process.env.JEST_WORKER_ID}`
+    : dbName
+}
+
+function parallelDatabasesEnabled(dreamconf: any): boolean {
+  return (
+    !!dreamconf.parallelTests &&
+    !Number.isNaN(Number(process.env.JEST_WORKER_ID)) &&
+    Number(process.env.JEST_WORKER_ID) > 1
+  )
 }
