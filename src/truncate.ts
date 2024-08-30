@@ -11,7 +11,7 @@ export default async function truncate(DreamApplication: any) {
   const client = new Client({
     host: data.host || "localhost",
     port: data.port,
-    database: getDatabaseName(data.name),
+    database: getDatabaseName(dreamconf, data.name),
     user: data.user,
     password: data.password,
   });
@@ -37,17 +37,15 @@ $$;
   await client.end();
 }
 
-function getDatabaseName(dbName: string): string {
-  return parallelDatabasesEnabled()
+function getDatabaseName(dreamconf: any, dbName: string): string {
+  return parallelDatabasesEnabled(dreamconf)
     ? `${dbName}_${process.env.JEST_WORKER_ID}`
     : dbName;
 }
 
-function parallelDatabasesEnabled(): boolean {
+function parallelDatabasesEnabled(dreamconf: any): boolean {
   return (
-    process.env.NODE_ENV === "test" &&
-    !Number.isNaN(Number(process.env.PARALLEL_TEST_DATABASES)) &&
-    Number(process.env.PARALLEL_TEST_DATABASES) > 1 &&
+    !!dreamconf.parallelTests &&
     !Number.isNaN(Number(process.env.JEST_WORKER_ID)) &&
     Number(process.env.JEST_WORKER_ID) > 1
   );
