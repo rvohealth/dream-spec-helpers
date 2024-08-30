@@ -28,7 +28,7 @@ FOR row IN SELECT table_name
   AND table_schema='public'
   AND table_name NOT IN ('kysely_migration', 'kysely_migration_lock')
 LOOP
-EXECUTE format('TRUNCATE TABLE %I CASCADE;',row.table_name);
+  EXECUTE format('TRUNCATE TABLE %I CASCADE;',row.table_name);
 END LOOP;
 END;
 $$;
