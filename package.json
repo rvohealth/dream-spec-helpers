@@ -1,6 +1,6 @@
 {
   "name": "@rvohealth/dream-spec-helpers",
-  "version": "0.0.7",
+  "version": "0.0.8",
   "description": "dream orm spec helpers",
   "main": "dist/src/index.js",
   "files": [
@@ -9,20 +9,32 @@
     "dist/**/*"
   ],
   "scripts": {
+    "publish": "yarn npm publish",
     "build": "echo \"building dream-spec-helpers...\" && rm -rf dist && npx tsc -p ./tsconfig.json",
     "prepack": "yarn build"
   },
-  "dependencies": {
-    "@types/jest": ">=29.5.12",
-    "@types/lodash.sortby": ">=4.7.9",
-    "@types/node": ">=20.11.17",
-    "@types/pg": ">=8.11.8",
-    "jest": ">=29.7.0",
-    "lodash.sortby": ">=4.7.0",
-    "pg": ">=8.12.0",
-    "ts-jest": ">=29.2.5",
-    "ts-node": ">=10.9.2",
-    "typescript": ">=5.5.4"
+  "packageManager": "yarn@4.4.1",
+  "peerDependencies": {
+    "@types/jest": "*",
+    "@types/node": "*",
+    "@types/pg": "*",
+    "jest": "*",
+    "pg": "*",
+    "ts-jest": "*",
+    "ts-node": "*"
   },
-  "packageManager": "yarn@4.4.1"
+  "devDependencies": {
+    "@types/jest": "^29.5.12",
+    "@types/lodash.sortby": "^4.7.9",
+    "@types/node": "^22.5.1",
+    "@types/pg": "^8.11.8",
+    "jest": "^29.7.0",
+    "pg": "^8.12.0",
+    "ts-jest": "^29.2.5",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.5.4"
+  },
+  "dependencies": {
+    "lodash.sortby": "^4.7.0"
+  }
 }

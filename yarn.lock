@@ -764,16 +764,24 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@rvohealth/dream-spec-helpers@workspace:."
   dependencies:
-    "@types/jest": "npm:>=29.5.12"
-    "@types/lodash.sortby": "npm:>=4.7.9"
-    "@types/node": "npm:>=20.11.17"
-    "@types/pg": "npm:>=8.11.8"
-    jest: "npm:>=29.7.0"
-    lodash.sortby: "npm:>=4.7.0"
-    pg: "npm:>=8.12.0"
-    ts-jest: "npm:>=29.2.5"
-    ts-node: "npm:>=10.9.2"
-    typescript: "npm:>=5.5.4"
+    "@types/jest": "npm:^29.5.12"
+    "@types/lodash.sortby": "npm:^4.7.9"
+    "@types/node": "npm:^22.5.1"
+    "@types/pg": "npm:^8.11.8"
+    jest: "npm:^29.7.0"
+    lodash.sortby: "npm:^4.7.0"
+    pg: "npm:^8.12.0"
+    ts-jest: "npm:^29.2.5"
+    ts-node: "npm:^10.9.2"
+    typescript: "npm:^5.5.4"
+  peerDependencies:
+    "@types/jest": "*"
+    "@types/node": "*"
+    "@types/pg": "*"
+    jest: "*"
+    pg: "*"
+    ts-jest: "*"
+    ts-node: "*"
   languageName: unknown
   linkType: soft
 
@@ -905,7 +913,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@types/jest@npm:>=29.5.12":
+"@types/jest@npm:^29.5.12":
   version: 29.5.12
   resolution: "@types/jest@npm:29.5.12"
   dependencies:
@@ -915,7 +923,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@types/lodash.sortby@npm:>=4.7.9":
+"@types/lodash.sortby@npm:^4.7.9":
   version: 4.7.9
   resolution: "@types/lodash.sortby@npm:4.7.9"
   dependencies:
@@ -931,7 +939,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@types/node@npm:*, @types/node@npm:>=20.11.17":
+"@types/node@npm:*, @types/node@npm:^22.5.1":
   version: 22.5.1
   resolution: "@types/node@npm:22.5.1"
   dependencies:
@@ -940,7 +948,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@types/pg@npm:>=8.11.8":
+"@types/pg@npm:^8.11.8":
   version: 8.11.8
   resolution: "@types/pg@npm:8.11.8"
   dependencies:
@@ -2554,7 +2562,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"jest@npm:>=29.7.0":
+"jest@npm:^29.7.0":
   version: 29.7.0
   resolution: "jest@npm:29.7.0"
   dependencies:
@@ -2661,7 +2669,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"lodash.sortby@npm:>=4.7.0":
+"lodash.sortby@npm:^4.7.0":
   version: 4.7.0
   resolution: "lodash.sortby@npm:4.7.0"
   checksum: 10c0/fc48fb54ff7669f33bb32997cab9460757ee99fafaf72400b261c3e10fde21538e47d8cfcbe6a25a31bcb5b7b727c27d52626386fc2de24eb059a6d64a89cdf5
@@ -3152,7 +3160,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"pg@npm:>=8.12.0":
+"pg@npm:^8.12.0":
   version: 8.12.0
   resolution: "pg@npm:8.12.0"
   dependencies:
@@ -3701,7 +3709,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"ts-jest@npm:>=29.2.5":
+"ts-jest@npm:^29.2.5":
   version: 29.2.5
   resolution: "ts-jest@npm:29.2.5"
   dependencies:
@@ -3738,7 +3746,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"ts-node@npm:>=10.9.2":
+"ts-node@npm:^10.9.2":
   version: 10.9.2
   resolution: "ts-node@npm:10.9.2"
   dependencies:
@@ -3790,7 +3798,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"typescript@npm:>=5.5.4":
+"typescript@npm:^5.5.4":
   version: 5.5.4
   resolution: "typescript@npm:5.5.4"
   bin:
@@ -3800,7 +3808,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"typescript@patch:typescript@npm%3A>=5.5.4#optional!builtin<compat/typescript>":
+"typescript@patch:typescript@npm%3A^5.5.4#optional!builtin<compat/typescript>":
   version: 5.5.4
   resolution: "typescript@patch:typescript@npm%3A5.5.4#optional!builtin<compat/typescript>::version=5.5.4&hash=379a07"
   bin:
