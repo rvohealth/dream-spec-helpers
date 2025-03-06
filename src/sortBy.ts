@@ -6,9 +6,6 @@ export default function sortBy<T>(
   return arrayClone.sort((a: T, b: T) => {
     const aPrime = valueToCompare(a)
     const bPrime = valueToCompare(b)
-    console.log(aPrime, typeof aPrime)
-    console.log(bPrime, typeof bPrime)
-    console.log(bPrime, typeof bPrime)
 
     if (typeof aPrime === "string" && typeof bPrime === "string")
       return aPrime.localeCompare(bPrime)
