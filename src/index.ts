@@ -1,5 +1,6 @@
 import _ from "./viteMatchers"
 
-export { default as truncate } from "./truncate"
+import _truncate from "./truncate"
+export const truncate = _truncate
 
 export default {}
