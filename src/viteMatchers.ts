@@ -134,8 +134,8 @@ expect.extend({
 
     let results: CustomMatcherResult
 
-    received = sortBy(received, received[0]?.primaryKey)
-    expected = sortBy(expected, expected[0]?.primaryKey)
+    received = sortBy(received, (a) => a[received[0]?.primaryKey])
+    expected = sortBy(expected, (a) => a[expected[0]?.primaryKey])
 
     received.forEach((receivedElement: any, i: number) => {
       results = expectMatchingDreamModels(

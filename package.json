@@ -1,7 +1,7 @@
 {
   "type": "module",
   "name": "@rvohealth/dream-spec-helpers",
-  "version": "0.1.0-fgbeta-6",
+  "version": "0.1.0-fgbeta-7",
   "description": "dream orm spec helpers",
   "main": "./dist/cjs/src/index.js",
   "module": "./dist/esm/src/index.js",
