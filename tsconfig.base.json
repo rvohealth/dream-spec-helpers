@@ -17,5 +17,5 @@
     /* TRYING TO GET DREAM WORKING with useDefineForClassFields set to true */
     "useDefineForClassFields": true
   },
-  "include": ["src/**/*", "shared/**/*"]
+  "include": ["src/**/*"]
 }

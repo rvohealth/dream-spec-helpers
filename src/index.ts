@@ -1,4 +1,4 @@
-import "./viteMatchers"
+import _ from "./viteMatchers"
 
 export { default as truncate } from "./truncate"
 
