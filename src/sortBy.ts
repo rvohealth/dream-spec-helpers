@@ -2,10 +2,12 @@ export default function sortBy<T>(
   array: T[],
   valueToCompare: (value: T) => number | string | bigint,
 ): T[] {
-  return array.sort((a: T, b: T) => {
+  const arrayClone = [...array]
+  return arrayClone.sort((a: T, b: T) => {
     const aPrime = valueToCompare(a)
     const bPrime = valueToCompare(b)
     console.log(aPrime, typeof aPrime)
+    console.log(bPrime, typeof bPrime)
     console.log(bPrime, typeof bPrime)
 
     if (typeof aPrime === "string" && typeof bPrime === "string")
