@@ -1,9 +1,18 @@
 {
   "type": "module",
   "name": "@rvohealth/dream-spec-helpers",
-  "version": "0.1.0",
+  "version": "0.1.0-fgbeta-2",
   "description": "dream orm spec helpers",
-  "main": "dist/src/index.js",
+  "main": "./dist/cjs/src/index.js",
+  "module": "./dist/esm/src/index.js",
+  "types": "./dist/types/src/index.d.ts",
+  "exports": {
+    ".": {
+      "require": "./dist/cjs/src/index.js",
+      "import": "./dist/esm/src/index.js",
+      "types": "./dist/types/src/index.d.ts"
+    }
+  },
   "files": [
     "tsconfig.json",
     "src/**/*",
@@ -11,7 +20,7 @@
   ],
   "scripts": {
     "publish": "yarn npm publish",
-    "build": "echo \"building dream-spec-helpers...\" && rm -rf dist && npx tsc -p ./tsconfig.json",
+    "build": "echo \"building dream-spec-helpers...\" && rm -rf dist && npx tsc -p ./tsconfig.cjs.build.json && npx tsc -p ./tsconfig.esm.build.json",
     "prepack": "yarn build"
   },
   "packageManager": "yarn@4.4.1",
