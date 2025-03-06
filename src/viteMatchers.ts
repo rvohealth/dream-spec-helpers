@@ -1,40 +1,61 @@
-import { getObjectSubset } from '@jest/expect-utils'
-import {
-  EXPECTED_COLOR,
-  RECEIVED_COLOR,
-  matcherHint,
-  printDiffOrStringify,
-  printExpected,
-  printReceived,
-  stringify,
-} from 'jest-matcher-utils'
-import sortBy from 'lodash.sortby'
+import { Matcher } from "vite"
+import { expect } from "vitest"
+import sortBy from "./sortBy"
 
-const EXPECTED_LABEL = 'Expected'
-const RECEIVED_LABEL = 'Received'
-const ERROR_COLOR = RECEIVED_COLOR
+function ERROR_COLOR(message: string) {
+  return message
+}
+
+function RECEIVED_COLOR(message: string) {
+  return message
+}
+
+function EXPECTED_COLOR(message: string) {
+  return message
+}
+
+function matcherHint(message: string) {
+  return message
+}
+
+function printExpected(message: string) {
+  return message
+}
+
+function printReceived(message: string) {
+  return message
+}
+
+function stringify(message: unknown) {
+  return JSON.parse(JSON.stringify(message))
+}
 
 type OwnMatcher<Params extends unknown[]> = (
-  this: jest.MatcherContext,
+  this: Matcher,
   received: unknown,
   ...params: Params
-) => jest.CustomMatcherResult
+) => CustomMatcherResult
+
+interface CustomMatcherResult {
+  pass: boolean
+  message: (actual?: unknown) => string
+}
 
 declare global {
   // eslint-disable-next-line @typescript-eslint/no-namespace
   namespace jest {
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
     interface Matchers<R> {
-      toMatchDreamModel(expected: any): jest.CustomMatcherResult
-      toMatchDreamModels(expected: any): jest.CustomMatcherResult
-      toBeWithin(precision: number, expected: number): jest.CustomMatcherResult
-      toEqualCalendarDate(expected: any): jest.CustomMatcherResult
+      toMatchDreamModel(expected: any): CustomMatcherResult
+      toMatchDreamModels(expected: any): CustomMatcherResult
+      toBeWithin(precision: number, expected: number): CustomMatcherResult
+      toEqualCalendarDate(expected: any): CustomMatcherResult
     }
     interface Expect {
-      toMatchDreamModel<T>(expected: T): T;
-      toMatchDreamModels<T>(expected: T): T;
-      toBeWithin<T>(precision: number, expected: T): T;
-      toEqualCalendarDate<T>(expected: T): T;
+      toMatchDreamModel<T>(expected: T): T
+      toMatchDreamModels<T>(expected: T): T
+      toBeWithin<T>(precision: number, expected: T): T
+      toEqualCalendarDate<T>(expected: T): T
     }
     interface ExpectExtendMap {
       toMatchDreamModel: OwnMatcher<[expected: any]>
@@ -47,7 +68,7 @@ declare global {
 
 expect.extend({
   toEqualCalendarDate(received: any, expected: any) {
-    if (!(received?.constructor?.name === 'CalendarDate')) {
+    if (!(received?.constructor?.name === "CalendarDate")) {
       return {
         pass: false,
         message: () =>
@@ -67,7 +88,7 @@ expect.extend({
 
   // https://stackoverflow.com/questions/50896753/jest-tobeclosetos-precision-not-working-as-expected#answer-75639525
   toBeWithin(received: any, precision: number, expected: number) {
-    if (typeof received !== 'number') {
+    if (typeof received !== "number") {
       throw new TypeError(`Received ${typeof received}, but expected number`)
     }
 
@@ -82,19 +103,21 @@ expect.extend({
   },
 
   toMatchDreamModel(received: any, expected: any) {
-    return expectMatchingDreamModels(received, expected, 'toMatchDreamModel')
+    return expectMatchingDreamModels(received, expected, "toMatchDreamModel")
   },
 
   toMatchDreamModels(received: any, expected: any) {
     if (!Array.isArray(received)) {
       return {
         pass: false,
-        message: () => `Expected received object to be an Array, but was ${received?.constructor?.name}`,
+        message: () =>
+          `Expected received object to be an Array, but was ${received?.constructor?.name}`,
       }
     } else if (!Array.isArray(expected)) {
       return {
         pass: false,
-        message: () => `Expected expected object to be an Array, but was ${expected?.constructor?.name}`,
+        message: () =>
+          `Expected expected object to be an Array, but was ${expected?.constructor?.name}`,
       }
     } else if (expected.length != received.length) {
       return {
@@ -105,24 +128,29 @@ expect.extend({
     } else if (expected.length === 0) {
       return {
         pass: true,
-        message: () => 'Expected arrays not to match, but both were empty',
+        message: () => "Expected arrays not to match, but both were empty",
       }
     }
 
-    let results: jest.CustomMatcherResult
+    let results: CustomMatcherResult
 
     received = sortBy(received, received[0]?.primaryKey)
     expected = sortBy(expected, expected[0]?.primaryKey)
 
     received.forEach((receivedElement: any, i: number) => {
-      results = expectMatchingDreamModels(receivedElement, expected[i], 'toMatchDreamModels')
+      results = expectMatchingDreamModels(
+        receivedElement,
+        expected[i],
+        "toMatchDreamModels",
+      )
       if (!results.pass) return
     })
 
     if (results!.pass) {
       return {
         pass: true,
-        message: () => 'Expected arrays of Dream objects not to match, but they do',
+        message: () =>
+          "Expected arrays of Dream objects not to match, but they do",
       }
     } else {
       return results!
@@ -137,23 +165,32 @@ function attributes(obj: any) {
 export function expectMatchingDreamModels(
   received: any,
   expected: any,
-  matcherName: string
-): jest.CustomMatcherResult {
+  matcherName: string,
+): CustomMatcherResult {
   let pass: boolean = false
   let message: () => string
 
   if (expected === undefined) {
-    message = () => ERROR_COLOR('expected is undefined but should be an instance of Dream')
+    message = () => "expected is undefined but should be an instance of Dream"
   } else if (expected === null) {
-    message = () => ERROR_COLOR('expected is null but should be an instance of Dream')
-  } else if (typeof expected !== 'object') {
-    message = () => ERROR_COLOR(`expected is ${expected.constructor.name} but must be an instance of Dream`)
+    message = () =>
+      ERROR_COLOR("expected is null but should be an instance of Dream")
+  } else if (typeof expected !== "object") {
+    message = () =>
+      ERROR_COLOR(
+        `expected is ${expected.constructor.name} but must be an instance of Dream`,
+      )
   } else if (received === undefined) {
-    message = () => ERROR_COLOR('received is undefined but should be an instance of Dream')
+    message = () =>
+      ERROR_COLOR("received is undefined but should be an instance of Dream")
   } else if (received === null) {
-    message = () => ERROR_COLOR('received is null but should be an instance of Dream')
-  } else if (typeof received !== 'object') {
-    message = () => ERROR_COLOR(`received is ${received.constructor.name} but must be an instance of Dream`)
+    message = () =>
+      ERROR_COLOR("received is null but should be an instance of Dream")
+  } else if (typeof received !== "object") {
+    message = () =>
+      ERROR_COLOR(
+        `received is ${received.constructor.name} but must be an instance of Dream`,
+      )
   } else if (expected.constructor !== received.constructor) {
     message = () =>
       EXPECTED_COLOR(`expected ${expected.constructor.name}, `) +
@@ -161,33 +198,54 @@ export function expectMatchingDreamModels(
   } else if (expected.primaryKeyValue !== received.primaryKeyValue) {
     message = () =>
       EXPECTED_COLOR(
-        `expected is ${expected.constructor.name} with primary key ${expected.primaryKeyValue}\n`
+        `expected is ${expected.constructor.name} with primary key ${expected.primaryKeyValue}\n`,
       ) +
-      RECEIVED_COLOR(`received is ${received.constructor.name} with primary key ${received.primaryKeyValue}`)
+      RECEIVED_COLOR(
+        `received is ${received.constructor.name} with primary key ${received.primaryKeyValue}`,
+      )
   } else {
     const comparableReceived = attributes(received)
     const comparableExpected = attributes(expected)
-    pass = JSON.stringify(comparableReceived) === JSON.stringify(comparableExpected)
+    pass =
+      JSON.stringify(comparableReceived) === JSON.stringify(comparableExpected)
 
     message = pass
       ? () =>
           matcherHint(matcherName) +
-          '\n\n' +
+          "\n\n" +
           `Expected: not ${printExpected(comparableExpected)}` +
           (stringify(comparableExpected) !== stringify(comparableReceived)
             ? `\nReceived:     ${printReceived(comparableReceived)}`
-            : '')
+            : "")
       : () =>
           matcherHint(matcherName) +
-          '\n\n' +
-          printDiffOrStringify(
-            stringify(comparableExpected),
-            getObjectSubset(stringify(comparableReceived), stringify(comparableExpected)),
-            EXPECTED_LABEL,
-            RECEIVED_LABEL,
-            false
-          )
+          "\n\n" +
+          generateDiff(comparableExpected, comparableReceived)
   }
 
   return { message, pass }
+}
+
+// provided by chatgpt
+function generateDiff(expected: any, received: any): string {
+  const diffLines: string[] = []
+
+  // Compare keys in the expected object
+  for (const key in expected) {
+    if (expected.hasOwnProperty(key)) {
+      if (expected[key] !== received[key]) {
+        diffLines.push(`- Expected ${key}: ${expected[key]}`)
+        diffLines.push(`+ Received ${key}: ${received[key]}`)
+      }
+    }
+  }
+
+  // Compare keys in the received object
+  for (const key in received) {
+    if (received.hasOwnProperty(key) && !expected.hasOwnProperty(key)) {
+      diffLines.push(`+ Received ${key}: ${received[key]}`)
+    }
+  }
+
+  return diffLines.join("\n")
 }
