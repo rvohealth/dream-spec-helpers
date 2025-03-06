@@ -1,6 +1,6 @@
 import { Matcher } from "vite"
 import { expect } from "vitest"
-import sortBy from "./sortBy"
+import sortBy from "./sortBy.js"
 
 function ERROR_COLOR(message: string) {
   return message
