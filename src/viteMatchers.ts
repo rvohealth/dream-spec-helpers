@@ -249,3 +249,5 @@ function generateDiff(expected: any, received: any): string {
 
   return diffLines.join("\n")
 }
+
+export default {}
