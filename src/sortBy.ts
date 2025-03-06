@@ -3,12 +3,10 @@ export default function sortBy<T>(
   valueToCompare: (value: T) => number | string | bigint,
 ): T[] {
   return array.sort((a: T, b: T) => {
-    console.log({ a, b })
-    console.log(valueToCompare)
-    console.log(valueToCompare(a))
-    console.log(valueToCompare(b))
     const aPrime = valueToCompare(a)
     const bPrime = valueToCompare(b)
+    console.log(aPrime, typeof aPrime)
+    console.log(bPrime, typeof bPrime)
 
     if (typeof aPrime === "string" && typeof bPrime === "string")
       return aPrime.localeCompare(bPrime)
