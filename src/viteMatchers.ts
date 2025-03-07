@@ -41,28 +41,12 @@ interface CustomMatcherResult {
   message: (actual?: unknown) => string
 }
 
-declare global {
-  // eslint-disable-next-line @typescript-eslint/no-namespace
-  namespace jest {
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    interface Matchers<R> {
-      toMatchDreamModel(expected: any): CustomMatcherResult
-      toMatchDreamModels(expected: any): CustomMatcherResult
-      toBeWithin(precision: number, expected: number): CustomMatcherResult
-      toEqualCalendarDate(expected: any): CustomMatcherResult
-    }
-    interface Expect {
-      toMatchDreamModel<T>(expected: T): T
-      toMatchDreamModels<T>(expected: T): T
-      toBeWithin<T>(precision: number, expected: T): T
-      toEqualCalendarDate<T>(expected: T): T
-    }
-    interface ExpectExtendMap {
-      toMatchDreamModel: OwnMatcher<[expected: any]>
-      toMatchDreamModels: OwnMatcher<[expected: any]>
-      toBeWithin: OwnMatcher<[precision: number, expected: number]>
-      toEqualCalendarDate: OwnMatcher<[expected: any]>
-    }
+declare module "vitest" {
+  interface ExpectType {
+    toMatchDreamModel(expected: any): CustomMatcherResult
+    toMatchDreamModels(expected: any): CustomMatcherResult
+    toBeWithin(precision: number, expected: number): CustomMatcherResult
+    toEqualCalendarDate(expected: any): CustomMatcherResult
   }
 }
 
