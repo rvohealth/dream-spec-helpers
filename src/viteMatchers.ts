@@ -42,7 +42,7 @@ interface CustomMatcherResult {
 }
 
 declare module "vitest" {
-  interface ExpectType {
+  interface ExpectStatic {
     toMatchDreamModel(expected: any): CustomMatcherResult
     toMatchDreamModels(expected: any): CustomMatcherResult
     toBeWithin(precision: number, expected: number): CustomMatcherResult
