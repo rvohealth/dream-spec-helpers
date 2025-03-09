@@ -1,0 +1,12 @@
+{
+  "extends": "./tsconfig.base.json",
+  "compilerOptions": {
+    "outDir": "./dist/esm",
+    "module": "nodenext",
+    "declarationDir": "./dist/types",
+    "moduleResolution": "nodenext",
+
+    "target": "ES2022",
+    "lib": ["ES2022"]
+  }
+}

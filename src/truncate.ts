@@ -1,15 +1,17 @@
-import { Client } from 'pg'
+// eslint-disable-next-line @typescript-eslint/ban-ts-comment
+// @ts-ignore
+import pg from "pg"
 
 export default async function truncate(DreamApplication: any) {
   // this was only ever written to clear the db between tests,
   // so there is no way to truncate in dev/prod
-  if (process.env.NODE_ENV !== 'test') return false
+  if (process.env.NODE_ENV !== "test") return false
 
   const dreamconf = DreamApplication.getOrFail()
   const data = dreamconf.dbCredentials.primary
 
-  const client = new Client({
-    host: data.host || 'localhost',
+  const client = new pg.Client({
+    host: data.host || "localhost",
     port: data.port,
     database: getDatabaseName(dreamconf, data.name),
     user: data.user,
@@ -32,7 +34,7 @@ LOOP
 END LOOP;
 END;
 $$;
-`
+`,
   )
   await client.end()
 }
