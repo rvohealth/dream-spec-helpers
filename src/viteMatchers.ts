@@ -1,4 +1,3 @@
-import { Matcher } from "vite"
 import { expect } from "vitest"
 import sortBy from "./sortBy.js"
 
@@ -30,12 +29,6 @@ function stringify(message: unknown) {
   return JSON.parse(JSON.stringify(message))
 }
 
-type OwnMatcher<Params extends unknown[]> = (
-  this: Matcher,
-  received: unknown,
-  ...params: Params
-) => CustomMatcherResult
-
 interface CustomMatcherResult {
   pass: boolean
   message: (actual?: unknown) => string
@@ -57,122 +50,99 @@ declare module "vitest" {
   }
 }
 
-// declare global {
-//   // eslint-disable-next-line @typescript-eslint/no-namespace
-//   namespace jest {
-//     // eslint-disable-next-line @typescript-eslint/no-unused-vars
-//     interface Matchers<R> {
-//       toMatchDreamModel(expected: any): CustomMatcherResult
-//       toMatchDreamModels(expected: any): CustomMatcherResult
-//       toBeWithin(precision: number, expected: number): CustomMatcherResult
-//       toEqualCalendarDate(expected: any): CustomMatcherResult
-//     }
-//     interface Expect {
-//       toMatchDreamModel<T>(expected: T): T
-//       toMatchDreamModels<T>(expected: T): T
-//       toBeWithin<T>(precision: number, expected: T): T
-//       toEqualCalendarDate<T>(expected: T): T
-//     }
-//     interface ExpectExtendMap {
-//       toMatchDreamModel: OwnMatcher<[expected: any]>
-//       toMatchDreamModels: OwnMatcher<[expected: any]>
-//       toBeWithin: OwnMatcher<[precision: number, expected: number]>
-//       toEqualCalendarDate: OwnMatcher<[expected: any]>
-//     }
-//   }
-// }
+export default function provideDreamViteMatchers() {
+  expect.extend({
+    toEqualCalendarDate(received: any, expected: any) {
+      if (!(received?.constructor?.name === "CalendarDate")) {
+        return {
+          pass: false,
+          message: () =>
+            `Expected received object to be an calendarDate, but was ${received?.constructor?.name}`,
+        }
+      }
 
-expect.extend({
-  toEqualCalendarDate(received: any, expected: any) {
-    if (!(received?.constructor?.name === "CalendarDate")) {
+      const pass = expected.equals(received)
       return {
-        pass: false,
+        pass,
         message: () =>
-          `Expected received object to be an calendarDate, but was ${received?.constructor?.name}`,
+          pass
+            ? `expected ${received.toISO()} NOT to equal ${expected.toISO()}`
+            : `expected ${received.toISO()} to equal ${expected.toISO()}`,
       }
-    }
+    },
 
-    const pass = expected.equals(received)
-    return {
-      pass,
-      message: () =>
-        pass
-          ? `expected ${received.toISO()} NOT to equal ${expected.toISO()}`
-          : `expected ${received.toISO()} to equal ${expected.toISO()}`,
-    }
-  },
+    // https://stackoverflow.com/questions/50896753/jest-tobeclosetos-precision-not-working-as-expected#answer-75639525
+    toBeWithin(received: any, precision: number, expected: number) {
+      if (typeof received !== "number") {
+        throw new TypeError(`Received ${typeof received}, but expected number`)
+      }
 
-  // https://stackoverflow.com/questions/50896753/jest-tobeclosetos-precision-not-working-as-expected#answer-75639525
-  toBeWithin(received: any, precision: number, expected: number) {
-    if (typeof received !== "number") {
-      throw new TypeError(`Received ${typeof received}, but expected number`)
-    }
-
-    const pass = Math.abs(received - expected) < precision
-    return {
-      pass,
-      message: () =>
-        pass
-          ? `expected ${received} NOT to be within ${precision} of ${expected}`
-          : `expected ${received} to be within ${precision} of ${expected}`,
-    }
-  },
-
-  toMatchDreamModel(received: any, expected: any) {
-    return expectMatchingDreamModels(received, expected, "toMatchDreamModel")
-  },
-
-  toMatchDreamModels(received: any, expected: any) {
-    if (!Array.isArray(received)) {
+      const pass = Math.abs(received - expected) < precision
       return {
-        pass: false,
+        pass,
         message: () =>
-          `Expected received object to be an Array, but was ${received?.constructor?.name}`,
+          pass
+            ? `expected ${received} NOT to be within ${precision} of ${expected}`
+            : `expected ${received} to be within ${precision} of ${expected}`,
       }
-    } else if (!Array.isArray(expected)) {
-      return {
-        pass: false,
-        message: () =>
-          `Expected expected object to be an Array, but was ${expected?.constructor?.name}`,
-      }
-    } else if (expected.length != received.length) {
-      return {
-        pass: false,
-        message: () =>
-          `Expected arrays of the same length, but expected has ${expected.length} elements and received has ${received.length}`,
-      }
-    } else if (expected.length === 0) {
-      return {
-        pass: true,
-        message: () => "Expected arrays not to match, but both were empty",
-      }
-    }
+    },
 
-    let results: CustomMatcherResult
+    toMatchDreamModel(received: any, expected: any) {
+      return expectMatchingDreamModels(received, expected, "toMatchDreamModel")
+    },
 
-    received = sortBy(received, (a) => a[received[0]?.primaryKey])
-    expected = sortBy(expected, (a) => a[expected[0]?.primaryKey])
-
-    received.forEach((receivedElement: any, i: number) => {
-      results = expectMatchingDreamModels(
-        receivedElement,
-        expected[i],
-        "toMatchDreamModels",
-      )
-      if (!results.pass) return
-    })
-
-    if (results!.pass) {
-      return {
-        pass: true,
-        message: () =>
-          "Expected arrays of Dream objects not to match, but they do",
+    toMatchDreamModels(received: any, expected: any) {
+      if (!Array.isArray(received)) {
+        return {
+          pass: false,
+          message: () =>
+            `Expected received object to be an Array, but was ${received?.constructor?.name}`,
+        }
+      } else if (!Array.isArray(expected)) {
+        return {
+          pass: false,
+          message: () =>
+            `Expected expected object to be an Array, but was ${expected?.constructor?.name}`,
+        }
+      } else if (expected.length != received.length) {
+        return {
+          pass: false,
+          message: () =>
+            `Expected arrays of the same length, but expected has ${expected.length} elements and received has ${received.length}`,
+        }
+      } else if (expected.length === 0) {
+        return {
+          pass: true,
+          message: () => "Expected arrays not to match, but both were empty",
+        }
       }
-    } else {
-      return results!
-    }
-  },
-})
+
+      let results: CustomMatcherResult
+
+      received = sortBy(received, (a) => a[received[0]?.primaryKey])
+      expected = sortBy(expected, (a) => a[expected[0]?.primaryKey])
+
+      received.forEach((receivedElement: any, i: number) => {
+        results = expectMatchingDreamModels(
+          receivedElement,
+          expected[i],
+          "toMatchDreamModels",
+        )
+        if (!results.pass) return
+      })
+
+      if (results!.pass) {
+        return {
+          pass: true,
+          message: () =>
+            "Expected arrays of Dream objects not to match, but they do",
+        }
+      } else {
+        return results!
+      }
+    },
+  })
+}
 
 function attributes(obj: any) {
   return { instanceof: obj.constructor.name, ...obj.attributes }
@@ -265,5 +235,3 @@ function generateDiff(expected: any, received: any): string {
 
   return diffLines.join("\n")
 }
-
-export default {}
