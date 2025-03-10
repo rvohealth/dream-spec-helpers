@@ -398,9 +398,9 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@rvohealth/dream-spec-helpers@workspace:.":
+"@rvoh/dream-spec-helpers@workspace:.":
   version: 0.0.0-use.local
-  resolution: "@rvohealth/dream-spec-helpers@workspace:."
+  resolution: "@rvoh/dream-spec-helpers@workspace:."
   dependencies:
     "@types/lodash.sortby": "npm:^4.7.9"
     "@types/node": "npm:^22.5.1"

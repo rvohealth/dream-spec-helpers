@@ -1,7 +1,7 @@
 {
   "type": "module",
-  "name": "@rvohealth/dream-spec-helpers",
-  "version": "0.1.0",
+  "name": "@rvoh/dream-spec-helpers",
+  "version": "0.2.0",
   "description": "dream orm spec helpers",
   "main": "./dist/cjs/src/index.js",
   "module": "./dist/esm/src/index.js",
@@ -19,7 +19,7 @@
     "dist/**/*"
   ],
   "scripts": {
-    "publish": "yarn npm publish",
+    "publish": "npm publish --access public",
     "build": "echo \"building dream-spec-helpers...\" && rm -rf dist && npx tsc -p ./tsconfig.cjs.build.json && npx tsc -p ./tsconfig.esm.build.json",
     "prepack": "yarn build"
   },
