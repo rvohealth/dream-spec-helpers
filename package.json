@@ -24,7 +24,6 @@
     "dist/**/*"
   ],
   "scripts": {
-    "publish": "npm publish --access public",
     "build": "echo \"building dream-spec-helpers...\" && rm -rf dist && npx tsc -p ./tsconfig.cjs.build.json && npx tsc -p ./tsconfig.esm.build.json",
     "prepack": "yarn build"
   },
