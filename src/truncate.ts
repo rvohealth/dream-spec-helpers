@@ -41,14 +41,14 @@ $$;
 
 function getDatabaseName(dreamconf: any, dbName: string): string {
   return parallelDatabasesEnabled(dreamconf)
-    ? `${dbName}_${process.env.JEST_WORKER_ID}`
+    ? `${dbName}_${process.env.VITEST_POOL_ID}`
     : dbName
 }
 
 function parallelDatabasesEnabled(dreamconf: any): boolean {
   return (
     !!dreamconf.parallelTests &&
-    !Number.isNaN(Number(process.env.JEST_WORKER_ID)) &&
-    Number(process.env.JEST_WORKER_ID) > 1
+    !Number.isNaN(Number(process.env.VITEST_POOL_ID)) &&
+    Number(process.env.VITEST_POOL_ID) > 1
   )
 }
