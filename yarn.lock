@@ -414,7 +414,6 @@ __metadata:
     "@types/node": "*"
     "@types/pg": "*"
     pg: "*"
-    ts-node: "*"
   languageName: unknown
   linkType: soft
 
