@@ -139,8 +139,8 @@ export default function provideDreamViteMatchers() {
 
       let results: CustomMatcherResult
 
-      received = sortBy(received, (a) => a[received[0]?.comparisonKey])
-      expected = sortBy(expected, (a) => a[expected[0]?.comparisonKey])
+      received = sortBy(received, (a) => a?.comparisonKey)
+      expected = sortBy(expected, (a) => a?.comparisonKey)
 
       received.forEach((receivedElement: any, i: number) => {
         results = expectMatchingDreamModels(
