@@ -35,23 +35,23 @@ interface CustomMatcherResult {
 }
 
 declare global {
-  const suite: (typeof import("vitest"))["suite"]
-  const test: (typeof import("vitest"))["test"]
-  const describe: (typeof import("vitest"))["describe"]
-  const context: (typeof import("vitest"))["describe"]
-  const it: (typeof import("vitest"))["it"]
-  const expectTypeOf: (typeof import("vitest"))["expectTypeOf"]
-  const assertType: (typeof import("vitest"))["assertType"]
-  const expect: (typeof import("vitest"))["expect"]
-  const assert: (typeof import("vitest"))["assert"]
-  const vitest: (typeof import("vitest"))["vitest"]
-  const vi: (typeof import("vitest"))["vitest"]
-  const beforeAll: (typeof import("vitest"))["beforeAll"]
-  const afterAll: (typeof import("vitest"))["afterAll"]
-  const beforeEach: (typeof import("vitest"))["beforeEach"]
-  const afterEach: (typeof import("vitest"))["afterEach"]
-  const onTestFailed: (typeof import("vitest"))["onTestFailed"]
-  const onTestFinished: (typeof import("vitest"))["onTestFinished"]
+  const suite: typeof import("vitest")["suite"]
+  const test: typeof import("vitest")["test"]
+  const describe: typeof import("vitest")["describe"]
+  const context: typeof import("vitest")["describe"]
+  const it: typeof import("vitest")["it"]
+  const expectTypeOf: typeof import("vitest")["expectTypeOf"]
+  const assertType: typeof import("vitest")["assertType"]
+  const expect: typeof import("vitest")["expect"]
+  const assert: typeof import("vitest")["assert"]
+  const vitest: typeof import("vitest")["vitest"]
+  const vi: typeof import("vitest")["vitest"]
+  const beforeAll: typeof import("vitest")["beforeAll"]
+  const afterAll: typeof import("vitest")["afterAll"]
+  const beforeEach: typeof import("vitest")["beforeEach"]
+  const afterEach: typeof import("vitest")["afterEach"]
+  const onTestFailed: typeof import("vitest")["onTestFailed"]
+  const onTestFinished: typeof import("vitest")["onTestFinished"]
 }
 
 declare module "vitest" {
@@ -139,14 +139,14 @@ export default function provideDreamViteMatchers() {
 
       let results: CustomMatcherResult
 
-      received = sortBy(received, (a) => a[received[0]?.primaryKey])
-      expected = sortBy(expected, (a) => a[expected[0]?.primaryKey])
+      received = sortBy(received, (a) => a[received[0]?.comparisonKey])
+      expected = sortBy(expected, (a) => a[expected[0]?.comparisonKey])
 
       received.forEach((receivedElement: any, i: number) => {
         results = expectMatchingDreamModels(
           receivedElement,
           expected[i],
-          "toMatchDreamModels",
+          "toMatchDreamModels"
         )
         if (!results.pass) return
       })
@@ -176,7 +176,7 @@ function attributes(obj: any) {
 export function expectMatchingDreamModels(
   received: any,
   expected: any,
-  matcherName: string,
+  matcherName: string
 ): CustomMatcherResult {
   let pass: boolean = false
   let message: () => string
@@ -189,7 +189,7 @@ export function expectMatchingDreamModels(
   } else if (typeof expected !== "object") {
     message = () =>
       ERROR_COLOR(
-        `expected is ${expected.constructor.name} but must be an instance of Dream`,
+        `expected is ${expected.constructor.name} but must be an instance of Dream`
       )
   } else if (received === undefined) {
     message = () =>
@@ -200,7 +200,7 @@ export function expectMatchingDreamModels(
   } else if (typeof received !== "object") {
     message = () =>
       ERROR_COLOR(
-        `received is ${received.constructor.name} but must be an instance of Dream`,
+        `received is ${received.constructor.name} but must be an instance of Dream`
       )
   } else if (expected.constructor !== received.constructor) {
     message = () =>
@@ -209,10 +209,10 @@ export function expectMatchingDreamModels(
   } else if (expected.primaryKeyValue !== received.primaryKeyValue) {
     message = () =>
       EXPECTED_COLOR(
-        `expected is ${expected.constructor.name} with primary key ${expected.primaryKeyValue}\n`,
+        `expected is ${expected.constructor.name} with primary key ${expected.primaryKeyValue}\n`
       ) +
       RECEIVED_COLOR(
-        `received is ${received.constructor.name} with primary key ${received.primaryKeyValue}`,
+        `received is ${received.constructor.name} with primary key ${received.primaryKeyValue}`
       )
   } else {
     const comparableReceived = attributes(received)
