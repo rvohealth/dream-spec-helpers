@@ -60,6 +60,7 @@ declare module "vitest" {
     toMatchDreamModels(expected: any): CustomMatcherResult
     toBeWithin(precision: number, expected: number): CustomMatcherResult
     toEqualCalendarDate(expected: any): CustomMatcherResult
+    toEqualDateTime(expected: any): CustomMatcherResult
   }
 
   interface Assertion {
@@ -67,6 +68,7 @@ declare module "vitest" {
     toMatchDreamModels(expected: any): CustomMatcherResult
     toBeWithin(precision: number, expected: number): CustomMatcherResult
     toEqualCalendarDate(expected: any): CustomMatcherResult
+    toEqualDateTime(expected: any): CustomMatcherResult
   }
 }
 
@@ -77,7 +79,26 @@ export default function provideDreamViteMatchers() {
         return {
           pass: false,
           message: () =>
-            `Expected received object to be an calendarDate, but was ${received?.constructor?.name}`,
+            `Expected received object to be a CalendarDate, but was ${received?.constructor?.name}`,
+        }
+      }
+
+      const pass = expected.equals(received)
+      return {
+        pass,
+        message: () =>
+          pass
+            ? `expected ${received.toISO()} NOT to equal ${expected.toISO()}`
+            : `expected ${received.toISO()} to equal ${expected.toISO()}`,
+      }
+    },
+
+    toEqualDateTime(received: any, expected: any) {
+      if (!(received?.constructor?.name === "DateTime")) {
+        return {
+          pass: false,
+          message: () =>
+            `Expected received object to be a DateTime, but was ${received?.constructor?.name}`,
         }
       }
 
