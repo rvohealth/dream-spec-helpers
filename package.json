@@ -1,7 +1,7 @@
 {
   "type": "module",
   "name": "@rvoh/dream-spec-helpers",
-  "version": "0.3.0",
+  "version": "0.3.1",
   "description": "dream orm spec helpers",
   "author": "RVO Health",
   "repository": {
