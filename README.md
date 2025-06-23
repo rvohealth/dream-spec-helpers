@@ -1,4 +1,4 @@
-# Psychic spec helpers
+# Dream spec helpers
 
 This repo provides spec helpers to be used in conjunction with the [Dream ORM](https://github.com/rvohealth/dream).
 
