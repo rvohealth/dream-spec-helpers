@@ -7,14 +7,14 @@ This repo provides spec helpers to be used in conjunction with the [Dream ORM](h
 1. Add this repo as a dev dependency in your psychic project (this is done by default for psychic apps, but worth mentioning in case it has been removed from your repo).
 
 ```bash
-yarn add --dev @rvohealth/dream-spec-helpers
+yarn add --dev @rvoh/dream-spec-helpers
 ```
 
 2. import dream spec helpers in your jest setup. If you are using dream and psychic together (which is the default and recommended setup), you can import the `@rvohealth/psychic-spec-helpers` package, which will automatically bring in `@rvohealth/dream-spec-helpers`. This is the recommended way to bring in this package, and is automatically set up when provisioning a new psychic app, so you should only need to do this with an a-typical setup.
 
 ```ts
 // spec/unit/setup/hooks.ts
-import "@rvohealth/psychic-spec-helpers";
+import "@rvoh/psychic-spec-helpers";
 ...
 ```
 
@@ -22,7 +22,7 @@ If you are using dream _without_ psychic (not recommended), then you can simply 
 
 ```ts
 // spec/unit/setup/hooks.ts
-import "@rvohealth/dream-spec-helpers";
+import "@rvoh/dream-spec-helpers";
 ...
 ```
 
