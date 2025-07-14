@@ -207,7 +207,7 @@ export function expectMatchingDreamModels(
   } else if (expected === null) {
     message = () =>
       ERROR_COLOR("expected is null but should be an instance of Dream")
-  } else if (typeof expected !== "object") {
+  } else if (!expected.isDreamInstance) {
     message = () =>
       ERROR_COLOR(
         `expected is ${expected.constructor.name} but must be an instance of Dream`
@@ -218,7 +218,7 @@ export function expectMatchingDreamModels(
   } else if (received === null) {
     message = () =>
       ERROR_COLOR("received is null but should be an instance of Dream")
-  } else if (typeof received !== "object") {
+  } else if (!received.isDreamInstance) {
     message = () =>
       ERROR_COLOR(
         `received is ${received.constructor.name} but must be an instance of Dream`
@@ -227,13 +227,17 @@ export function expectMatchingDreamModels(
     message = () =>
       EXPECTED_COLOR(`expected ${expected.constructor.name}, `) +
       RECEIVED_COLOR(`received ${received.constructor.name}`)
-  } else if (expected.primaryKeyValue !== received.primaryKeyValue) {
+  } else if (expected.primaryKeyValue() !== received.primaryKeyValue()) {
     message = () =>
       EXPECTED_COLOR(
-        `expected is ${expected.constructor.name} with primary key ${expected.primaryKeyValue}\n`
+        `expected is ${
+          expected.constructor.name
+        } with primary key ${expected.primaryKeyValue()}\n`
       ) +
       RECEIVED_COLOR(
-        `received is ${received.constructor.name} with primary key ${received.primaryKeyValue}`
+        `received is ${
+          received.constructor.name
+        } with primary key ${received.primaryKeyValue()}`
       )
   } else {
     const comparableReceived = attributes(received)
