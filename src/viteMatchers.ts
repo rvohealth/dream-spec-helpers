@@ -72,7 +72,7 @@ declare module "vitest" {
   }
 }
 
-export default function provideDreamViteMatchers() {
+export default function provideDreamViteMatchers(Dream: any) {
   expect.extend({
     toEqualCalendarDate(received: any, expected: any) {
       if (!(received?.constructor?.name === "CalendarDate")) {
@@ -129,7 +129,12 @@ export default function provideDreamViteMatchers() {
     },
 
     toMatchDreamModel(received: any, expected: any) {
-      return expectMatchingDreamModels(received, expected, "toMatchDreamModel")
+      return expectMatchingDreamModels(
+        Dream,
+        received,
+        expected,
+        "toMatchDreamModel"
+      )
     },
 
     toMatchDreamModels(received: any, expected: any) {
@@ -165,6 +170,7 @@ export default function provideDreamViteMatchers() {
 
       received.forEach((receivedElement: any, i: number) => {
         results = expectMatchingDreamModels(
+          Dream,
           receivedElement,
           expected[i],
           "toMatchDreamModels"
@@ -195,6 +201,7 @@ function attributes(obj: any) {
 }
 
 export function expectMatchingDreamModels(
+  Dream: any,
   received: any,
   expected: any,
   matcherName: string
@@ -207,7 +214,7 @@ export function expectMatchingDreamModels(
   } else if (expected === null) {
     message = () =>
       ERROR_COLOR("expected is null but should be an instance of Dream")
-  } else if (!expected.isDreamInstance) {
+  } else if (!(expected instanceof Dream)) {
     message = () =>
       ERROR_COLOR(
         `expected is ${expected.constructor.name} but must be an instance of Dream`
@@ -218,7 +225,7 @@ export function expectMatchingDreamModels(
   } else if (received === null) {
     message = () =>
       ERROR_COLOR("received is null but should be an instance of Dream")
-  } else if (!received.isDreamInstance) {
+  } else if (!(received instanceof Dream)) {
     message = () =>
       ERROR_COLOR(
         `received is ${received.constructor.name} but must be an instance of Dream`
