@@ -214,10 +214,13 @@ export function expectMatchingDreamModels(
   } else if (expected === null) {
     message = () =>
       ERROR_COLOR("expected is null but should be an instance of Dream")
+  } else if (typeof expected !== "object") {
+    message = () =>
+      ERROR_COLOR(`expected is ${expected} but should be an instance of Dream`)
   } else if (!(expected instanceof Dream)) {
     message = () =>
       ERROR_COLOR(
-        `expected is ${expected.constructor.name} but must be an instance of Dream`
+        `expected is ${expected.constructor.name} but should be an instance of Dream`
       )
   } else if (received === undefined) {
     message = () =>
@@ -225,10 +228,13 @@ export function expectMatchingDreamModels(
   } else if (received === null) {
     message = () =>
       ERROR_COLOR("received is null but should be an instance of Dream")
+  } else if (typeof received !== "object") {
+    message = () =>
+      ERROR_COLOR(`received is ${received} but should be an instance of Dream`)
   } else if (!(received instanceof Dream)) {
     message = () =>
       ERROR_COLOR(
-        `received is ${received.constructor.name} but must be an instance of Dream`
+        `received is ${received.constructor.name} but should be an instance of Dream`
       )
   } else if (expected.constructor !== received.constructor) {
     message = () =>
