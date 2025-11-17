@@ -1,3 +1,8 @@
+## 2.0.0
+
+- bump to 2 to match Dream versioning
+- remove unused lodash package
+
 ## 1.2.0
 
 - toMatchDreamModel handles non-objects
