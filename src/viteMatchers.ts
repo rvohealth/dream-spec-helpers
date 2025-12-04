@@ -35,23 +35,23 @@ interface CustomMatcherResult {
 }
 
 declare global {
-  const suite: typeof import("vitest")["suite"]
-  const test: typeof import("vitest")["test"]
-  const describe: typeof import("vitest")["describe"]
-  const context: typeof import("vitest")["describe"]
-  const it: typeof import("vitest")["it"]
-  const expectTypeOf: typeof import("vitest")["expectTypeOf"]
-  const assertType: typeof import("vitest")["assertType"]
-  const expect: typeof import("vitest")["expect"]
-  const assert: typeof import("vitest")["assert"]
-  const vitest: typeof import("vitest")["vitest"]
-  const vi: typeof import("vitest")["vitest"]
-  const beforeAll: typeof import("vitest")["beforeAll"]
-  const afterAll: typeof import("vitest")["afterAll"]
-  const beforeEach: typeof import("vitest")["beforeEach"]
-  const afterEach: typeof import("vitest")["afterEach"]
-  const onTestFailed: typeof import("vitest")["onTestFailed"]
-  const onTestFinished: typeof import("vitest")["onTestFinished"]
+  const suite: (typeof import("vitest"))["suite"]
+  const test: (typeof import("vitest"))["test"]
+  const describe: (typeof import("vitest"))["describe"]
+  const context: (typeof import("vitest"))["describe"]
+  const it: (typeof import("vitest"))["it"]
+  const expectTypeOf: (typeof import("vitest"))["expectTypeOf"]
+  const assertType: (typeof import("vitest"))["assertType"]
+  const expect: (typeof import("vitest"))["expect"]
+  const assert: (typeof import("vitest"))["assert"]
+  const vitest: (typeof import("vitest"))["vitest"]
+  const vi: (typeof import("vitest"))["vitest"]
+  const beforeAll: (typeof import("vitest"))["beforeAll"]
+  const afterAll: (typeof import("vitest"))["afterAll"]
+  const beforeEach: (typeof import("vitest"))["beforeEach"]
+  const afterEach: (typeof import("vitest"))["afterEach"]
+  const onTestFailed: (typeof import("vitest"))["onTestFailed"]
+  const onTestFinished: (typeof import("vitest"))["onTestFinished"]
 }
 
 declare module "vitest" {
@@ -133,7 +133,7 @@ export default function provideDreamViteMatchers(Dream: any) {
         Dream,
         received,
         expected,
-        "toMatchDreamModel"
+        "toMatchDreamModel",
       )
     },
 
@@ -173,7 +173,7 @@ export default function provideDreamViteMatchers(Dream: any) {
           Dream,
           receivedElement,
           expected[i],
-          "toMatchDreamModels"
+          "toMatchDreamModels",
         )
         if (!results.pass) return
       })
@@ -204,7 +204,7 @@ export function expectMatchingDreamModels(
   Dream: any,
   received: any,
   expected: any,
-  matcherName: string
+  matcherName: string,
 ): CustomMatcherResult {
   let pass: boolean = false
   let message: () => string
@@ -220,7 +220,7 @@ export function expectMatchingDreamModels(
   } else if (!(expected instanceof Dream)) {
     message = () =>
       ERROR_COLOR(
-        `expected is ${expected.constructor.name} but should be an instance of Dream`
+        `expected is ${expected.constructor.name} but should be an instance of Dream`,
       )
   } else if (received === undefined) {
     message = () =>
@@ -234,7 +234,7 @@ export function expectMatchingDreamModels(
   } else if (!(received instanceof Dream)) {
     message = () =>
       ERROR_COLOR(
-        `received is ${received.constructor.name} but should be an instance of Dream`
+        `received is ${received.constructor.name} but should be an instance of Dream`,
       )
   } else if (expected.constructor !== received.constructor) {
     message = () =>
@@ -245,12 +245,12 @@ export function expectMatchingDreamModels(
       EXPECTED_COLOR(
         `expected is ${
           expected.constructor.name
-        } with primary key ${expected.primaryKeyValue()}\n`
+        } with primary key ${expected.primaryKeyValue()}\n`,
       ) +
       RECEIVED_COLOR(
         `received is ${
           received.constructor.name
-        } with primary key ${received.primaryKeyValue()}`
+        } with primary key ${received.primaryKeyValue()}`,
       )
   } else {
     const comparableReceived = attributes(received)
@@ -281,6 +281,7 @@ function generateDiff(expected: any, received: any): string {
 
   // Compare keys in the expected object
   for (const key in expected) {
+    // eslint-disable-next-line no-prototype-builtins
     if (expected.hasOwnProperty(key)) {
       if (expected[key] !== received[key]) {
         diffLines.push(`- Expected ${key}: ${expected[key]}`)
@@ -291,6 +292,7 @@ function generateDiff(expected: any, received: any): string {
 
   // Compare keys in the received object
   for (const key in received) {
+    // eslint-disable-next-line no-prototype-builtins
     if (received.hasOwnProperty(key) && !expected.hasOwnProperty(key)) {
       diffLines.push(`+ Received ${key}: ${received[key]}`)
     }

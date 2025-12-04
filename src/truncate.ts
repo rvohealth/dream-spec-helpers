@@ -4,7 +4,7 @@ import pg from "pg"
 
 export default async function truncate(
   DreamApp: any,
-  connectionName: string = "default"
+  connectionName: string = "default",
 ) {
   // this was only ever written to clear the db between tests,
   // so there is no way to truncate in dev/prod
@@ -24,7 +24,7 @@ export default async function truncate(
 
   if (!credentials)
     throw new Error(
-      `Failed to locate db credentials for connectionName: ${connectionName}`
+      `Failed to locate db credentials for connectionName: ${connectionName}`,
     )
 
   const client = new pg.Client({
@@ -51,7 +51,7 @@ LOOP
 END LOOP;
 END;
 $$;
-`
+`,
   )
   await client.end()
 }
