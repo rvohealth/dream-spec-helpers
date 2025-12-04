@@ -1,10 +1,10 @@
 export default function sortBy<T>(
   array: T[],
-  valueToCompare: (value: T) => number
+  valueToCompare: (value: T) => number,
 ): T[]
 export default function sortBy<T>(
   array: T[],
-  valueToCompare: (value: T) => string
+  valueToCompare: (value: T) => string,
 ): T[]
 /**
  * Returns a copy of the array, sorted by the value returned by calling the function in the second argument on each element in the array
@@ -27,7 +27,7 @@ export default function sortBy<T>(
  */
 export default function sortBy<T>(
   array: T[],
-  valueToCompare: (value: T) => unknown
+  valueToCompare: (value: T) => unknown,
 ) {
   const arrayClone = [...array]
   return arrayClone.sort((a: T, b: T) => {
@@ -43,7 +43,10 @@ export default function sortBy<T>(
 }
 
 export class UnsupportedValueFromComparisonFunction extends Error {
-  constructor(private aPrime: any, private bPrime: any) {
+  constructor(
+    private aPrime: any,
+    private bPrime: any,
+  ) {
     super()
   }
 

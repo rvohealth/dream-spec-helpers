@@ -1,0 +1,5 @@
+.github/
+dist/
+.pnpm/
+pnpm-lock.yaml
+README.md
