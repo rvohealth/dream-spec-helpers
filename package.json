@@ -27,9 +27,7 @@
     "build": "echo \"building dream-spec-helpers...\" && rm -rf dist && npx tsc -p ./tsconfig.cjs.build.json && npx tsc -p ./tsconfig.esm.build.json",
     "format": "pnpm run prettier . --write",
     "prepack": "yarn build",
-    "eslint": "eslint",
-    "lint": "pnpm run eslint --no-warn-ignored \"src/**/*.ts\" && pnpm run prettier . --check",
-    "prettier": "prettier"
+    "lint": "pnpm eslint --no-warn-ignored \"src/**/*.ts\" && pnpm prettier . --check"
   },
   "peerDependencies": {
     "@types/node": "*",
