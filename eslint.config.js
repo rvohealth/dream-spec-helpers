@@ -9,7 +9,7 @@ const config = typescriptEslint.config(
   typescriptEslint.configs.recommendedTypeChecked,
 
   {
-    ignores: [".npmrc", "dist"],
+    ignores: [".npmrc", "dist/**/*"],
   },
 
   {

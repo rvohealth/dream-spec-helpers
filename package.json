@@ -25,7 +25,7 @@
   ],
   "scripts": {
     "build": "echo \"building dream-spec-helpers...\" && rm -rf dist && npx tsc -p ./tsconfig.cjs.build.json && npx tsc -p ./tsconfig.esm.build.json",
-    "format": "pnpm run prettier . --write",
+    "format": "pnpm prettier . --write",
     "prepack": "yarn build",
     "lint": "pnpm eslint --no-warn-ignored \"src/**/*.ts\" && pnpm prettier . --check"
   },
