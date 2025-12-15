@@ -1,0 +1,74 @@
+name: PR Checks
+on:
+  - pull_request
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref || github.run_id }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  packages: read
+  actions: none
+  attestations: none
+  checks: none
+  deployments: none
+  id-token: none
+  issues: none
+  discussions: none
+  pages: none
+  pull-requests: none
+  repository-projects: none
+  security-events: none
+  statuses: none
+
+jobs:
+  check-no-sync-diff:
+    name: Ensure no sync diffs
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:13-alpine
+        env:
+          POSTGRES_USER: dream
+          POSTGRES_DB: dream_test
+          POSTGRES_PASSWORD: "postgres"
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+
+    env:
+      NODE_ENV: test
+      PORT: 7778
+      DB_USER: dream
+      DB_NAME: dream_spec_helpers_test
+      DB_HOST: localhost
+      REPLICA_DB_HOST: localhost
+      REPLICA_DB_PORT: 5432
+      DB_PASSWORD: postgres
+      DB_PORT: 5432
+      TZ: UTC
+      DREAM_PARALLEL_TESTS: 4
+      APP_ENCRYPTION_KEY: ${{ secrets.APP_ENCRYPTION_KEY }}
+      LEGACY_APP_ENCRYPTION_KEY: ${{ secrets.LEGACY_APP_ENCRYPTION_KEY }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - run: corepack enable
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm dream db:migrate --skip-sync
+      - run: pnpm dream sync
+      - name: Check for sync differences
+        run: |
+          if [ -n "$(git diff -- . ':!*.npmrc*')" ]; then
+            echo "Error: 'pnpm dream sync' produced changes. Please run 'pnpm dream sync' locally and commit the changes."
+            echo "Changes detected:"
+            git diff -- . ':!*.npmrc*'
+            exit 1
+          else
+            echo "No changes detected after sync - all good!"
+          fi
