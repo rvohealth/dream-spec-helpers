@@ -1,3 +1,7 @@
+## 2.1.0
+
+- `toEqualClockTime` matcher
+
 ## 2.0.0
 
 - bump to 2 to match Dream versioning
