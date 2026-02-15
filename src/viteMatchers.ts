@@ -61,6 +61,7 @@ declare module "vitest" {
     toBeWithin(precision: number, expected: number): CustomMatcherResult
     toEqualCalendarDate(expected: any): CustomMatcherResult
     toEqualClockTime(expected: any): CustomMatcherResult
+    toEqualClockTimeTz(expected: any): CustomMatcherResult
     toEqualDateTime(expected: any): CustomMatcherResult
   }
 
@@ -70,6 +71,7 @@ declare module "vitest" {
     toBeWithin(precision: number, expected: number): CustomMatcherResult
     toEqualCalendarDate(expected: any): CustomMatcherResult
     toEqualClockTime(expected: any): CustomMatcherResult
+    toEqualClockTimeTz(expected: any): CustomMatcherResult
     toEqualDateTime(expected: any): CustomMatcherResult
   }
 }
@@ -101,6 +103,25 @@ export default function provideDreamViteMatchers(Dream: any) {
           pass: false,
           message: () =>
             `Expected received object to be a ClockTime, but was ${received?.constructor?.name}`,
+        }
+      }
+
+      const pass = expected.equals(received)
+      return {
+        pass,
+        message: () =>
+          pass
+            ? `expected ${received.toISO()} NOT to equal ${expected.toISO()}`
+            : `expected ${received.toISO()} to equal ${expected.toISO()}`,
+      }
+    },
+
+    toEqualClockTimeTz(received: any, expected: any) {
+      if (!(received?.constructor?.name === "ClockTimeTz")) {
+        return {
+          pass: false,
+          message: () =>
+            `Expected received object to be a ClockTimeTz, but was ${received?.constructor?.name}`,
         }
       }
 
