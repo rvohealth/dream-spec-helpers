@@ -1,3 +1,7 @@
+## 2.1.2
+
+Bump vulnerable packages
+
 ## 2.1.1
 
 - `toEqualClockTimeTz` matcher
