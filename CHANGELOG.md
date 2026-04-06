@@ -1,5 +1,9 @@
 ## 2.1.1
 
+- bump minimatch to address CVE
+
+## 2.1.1
+
 - `toEqualClockTimeTz` matcher
 
 ## 2.1.0
