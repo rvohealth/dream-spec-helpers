@@ -30,7 +30,11 @@ export default async function truncate(
   const client = new pg.Client({
     host: credentials.host || "localhost",
     port: credentials.port,
-    database: getDatabaseName(dreamconf, credentials.name),
+    database: await resolveDatabaseName(
+      dreamconf,
+      connectionName,
+      credentials.name,
+    ),
     user: credentials.user,
     password: credentials.password,
   })
@@ -56,7 +60,26 @@ $$;
   await client.end()
 }
 
-function getDatabaseName(dreamconf: any, dbName: string): string {
+// Resolve the database `truncate` should connect to. As of @rvoh/dream's
+// per-live-worker test-database pool, the worker claims a database via a
+// Postgres advisory lock and `dreamconf.testDatabaseName` is the single source
+// of truth for the claimed name — `truncate` opens its own `pg.Client`, so it
+// must read (and, if needed, trigger) that claim rather than recomputing a
+// name from VITEST_POOL_ID, which is a reusable slot id that overlapping
+// workers share. Older dream versions lack `testDatabaseName`; for those we
+// fall back to the legacy VITEST_POOL_ID-based name.
+async function resolveDatabaseName(
+  dreamconf: any,
+  connectionName: string,
+  dbName: string,
+): Promise<string> {
+  if (typeof dreamconf.testDatabaseName === "function") {
+    return await dreamconf.testDatabaseName(connectionName, "primary")
+  }
+  return legacyDatabaseName(dreamconf, dbName)
+}
+
+function legacyDatabaseName(dreamconf: any, dbName: string): string {
   return parallelDatabasesEnabled(dreamconf)
     ? `${dbName}_${process.env.VITEST_POOL_ID}`
     : dbName
