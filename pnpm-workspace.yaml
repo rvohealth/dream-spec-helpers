@@ -1,0 +1,13 @@
+# SECURITY — allowBuilds is a supply-chain allowlist. pnpm 10+ blocks ALL
+# dependency lifecycle scripts (postinstall, etc.) by default; that default is
+# the primary defense against Shai-Hulud-class npm worms. Only packages listed
+# below (= true) may run install/build scripts. Keep this MINIMAL — every entry
+# re-opens script execution for that package, so add one only with clear cause.
+# esbuild ships prebuilt platform binaries via optionalDependencies and does not
+# need its postinstall to run; it is listed here (= false / blocked) so pnpm 11
+# does not rewrite this file with placeholder prompts on every non-interactive
+# install (pnpm/pnpm#11574).
+strictDepBuilds: false
+
+allowBuilds:
+  esbuild: false
