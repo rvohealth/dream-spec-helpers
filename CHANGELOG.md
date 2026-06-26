@@ -1,3 +1,7 @@
+## 2.2.2
+
+- upgrade to pnpm@11.9.0; add pnpm-workspace.yaml with strictDepBuilds: false and esbuild blocked
+
 ## 2.2.1
 
 - switch to Github action publishing to npmjs.com

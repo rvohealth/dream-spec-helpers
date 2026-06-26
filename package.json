@@ -1,7 +1,7 @@
 {
   "type": "module",
   "name": "@rvoh/dream-spec-helpers",
-  "version": "2.2.1",
+  "version": "2.2.2",
   "description": "dream orm spec helpers",
   "author": "RVO Health",
   "publishConfig": {
@@ -50,7 +50,7 @@
     "typescript-eslint": "^8.48.1",
     "vitest": "^4.0.10"
   },
-  "packageManager": "pnpm@10.24.0+sha512.01ff8ae71b4419903b65c60fb2dc9d34cf8bb6e06d03bde112ef38f7a34d6904c424ba66bea5cdcf12890230bf39f9580473140ed9c946fef328b6e5238a345a",
+  "packageManager": "pnpm@11.9.0+sha512.bd682d5d03fe525ef7c9fd6780c6884d1e756ac4c9c9fe00c538782824310dcf90e3ddc4f53835f06dfaebd5085e41855e0bcbb3b60de2ac5bbab89e5036f03b",
   "dependencies": {
     "commander": "^14.0.2",
     "dotenv": "^17.2.3",
