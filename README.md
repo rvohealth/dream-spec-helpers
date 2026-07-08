@@ -86,6 +86,8 @@ Rather than truncating every table on every call, `cleanTestDb` first asks the d
 
 The older `truncate` export is deprecated but still works — it is an alias for `cleanTestDb`, so existing hooks files get the same behavior without changes.
 
+One caveat when upgrading: because dirty tables are cleaned with `DELETE` rather than `TRUNCATE`, Postgres reuses freed heap space, so queries without an `ORDER BY` are no longer coincidentally returned in insertion order. SQL never guaranteed that order — per-spec `TRUNCATE` made it deterministic in practice, and specs may have unknowingly relied on it. Specs asserting row order must declare an ordering (an `order` option on the association, or an explicit `.order(...)` on the query) or assert order-agnostically (sort both sides before comparing, or use an order-insensitive matcher — this package's `toMatchDreamModels` sorts both arrays before comparing, so it is safe).
+
 ## Questions?
 
 - **Ask them on [Stack Overflow](https://stackoverflow.com)**, using the `[dream]` tag.
