@@ -1,7 +1,7 @@
 {
   "type": "module",
   "name": "@rvoh/dream-spec-helpers",
-  "version": "2.2.2",
+  "version": "2.3.0",
   "description": "dream orm spec helpers",
   "author": "RVO Health",
   "publishConfig": {
@@ -27,7 +27,7 @@
     "dist/**/*"
   ],
   "scripts": {
-    "build": "echo \"building dream-spec-helpers...\" && rm -rf dist && tsc -p ./tsconfig.cjs.build.json && tsc -p ./tsconfig.esm.build.json",
+    "build": "echo \"building dream-spec-helpers...\" && rm -rf dist && tsc -p ./tsconfig.cjs.build.json && tsc -p ./tsconfig.esm.build.json && echo '{\"type\":\"commonjs\"}' > dist/cjs/package.json",
     "format": "pnpm prettier . --write",
     "prepack": "pnpm build",
     "lint": "pnpm eslint --no-warn-ignored \"src/**/*.ts\" && pnpm prettier . --check"

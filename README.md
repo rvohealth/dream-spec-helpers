@@ -58,6 +58,34 @@ describe("V1/Host/PlacesController", () => {
 });
 ```
 
+## Cleaning the database between specs
+
+`cleanTestDb` empties the application's tables so every spec starts from a clean database. Call it from your spec hooks:
+
+```ts
+// spec/unit/setup/hooks.ts
+import { cleanTestDb } from "@rvoh/dream-spec-helpers";
+
+beforeEach(async () => {
+  await cleanTestDb(DreamApp);
+});
+```
+
+Apps with multiple database connections pass the connection name as a second argument (it defaults to `"default"`):
+
+```ts
+beforeEach(async () => {
+  await Promise.all([
+    cleanTestDb(DreamApp),
+    cleanTestDb(DreamApp, "alternateConnection"),
+  ]);
+});
+```
+
+Rather than truncating every table on every call, `cleanTestDb` first asks the database which tables actually contain rows — a single statement of per-table `EXISTS` checks on a persistent connection — and cleans exactly those. Specs that write nothing pay a sub-millisecond no-op; specs that write pay roughly a millisecond. Semantics match a full truncate: all rows are gone at each spec start, sequences are not reset, and the `kysely_migration` / `kysely_migration_lock` tables are left alone. As a safety measure, it only runs when `NODE_ENV === 'test'`.
+
+The older `truncate` export is deprecated but still works — it is an alias for `cleanTestDb`, so existing hooks files get the same behavior without changes.
+
 ## Questions?
 
 - **Ask them on [Stack Overflow](https://stackoverflow.com)**, using the `[dream]` tag.
