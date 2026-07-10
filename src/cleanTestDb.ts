@@ -122,7 +122,7 @@ function connectionCache(
   const existing = connectionCaches.get(cacheKey)
   if (existing) return existing
 
-  const building = buildConnectionCache(database, credentials)
+  const building = buildConnectionCache(cacheKey, database, credentials)
   connectionCaches.set(cacheKey, building)
   // if the build fails (e.g., transient connection error), allow a retry on
   // the next call instead of caching the rejection forever
@@ -131,6 +131,7 @@ function connectionCache(
 }
 
 async function buildConnectionCache(
+  cacheKey: string,
   database: string,
   credentials: any,
 ): Promise<ConnectionCache> {
@@ -142,6 +143,25 @@ async function buildConnectionCache(
     password: credentials.password,
   })
   await client.connect()
+
+  // a pg.Client with no 'error' listener turns a dropped connection (e.g.,
+  // the test Postgres restarting mid-suite) into an uncaughtException that
+  // kills the vitest worker with a raw pg stack. Log comprehensibly and evict
+  // this cache entry so the next cleanTestDb call reconnects. The listener
+  // stays attached for the client's lifetime (a dead client may emit 'error'
+  // more than once); only the first error evicts, so a later error from this
+  // client can never evict a replacement entry.
+  let evicted = false
+  client.on("error", (error: Error) => {
+    console.error(
+      `cleanTestDb: cached connection to database "${database}" errored (${error.message}); discarding it — the next cleanTestDb call will reconnect`,
+      error,
+    )
+    if (!evicted) {
+      evicted = true
+      connectionCaches.delete(cacheKey)
+    }
+  })
 
   // the client stays open for the rest of the spec run; unref its socket so
   // it never keeps the vitest worker process alive once the suite finishes
