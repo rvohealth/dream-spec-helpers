@@ -1,94 +1,21 @@
-// eslint-disable-next-line @typescript-eslint/ban-ts-comment
-// @ts-ignore
-import pg from "pg"
+import cleanTestDb from "./cleanTestDb.js"
 
+/**
+ * Removes all rows from the application's tables so that each spec starts
+ * from an empty database. Kept for backward compatibility; new code should
+ * call {@link cleanTestDb}, which this delegates to (same signature, same
+ * behavior — including the dirty-table detection that makes cleaning a
+ * near-no-op for specs that wrote nothing).
+ *
+ * @deprecated use `cleanTestDb` instead — same signature and behavior; this
+ * alias will be removed in a future major version.
+ *
+ * @param DreamApp - the DreamApp class from `@rvoh/dream`
+ * @param connectionName - the configured database connection to clean (defaults to `"default"`)
+ */
 export default async function truncate(
   DreamApp: any,
   connectionName: string = "default",
 ) {
-  // this was only ever written to clear the db between tests,
-  // so there is no way to truncate in dev/prod
-  if (process.env.NODE_ENV !== "test") return false
-
-  const dreamconf = DreamApp.getOrFail()
-
-  // prior to @rvoh/dream@1.5.0, dbCredentials would point to the app's
-  // root db credentials. After 1.5.0, this has been switched to be a record
-  // with keys that are connection names, and values that point to db credentials.
-  // To maintain backwards compatibility with older versions of dream, we will check
-  // for the 'default' key, and if it exists, we will use the connectionName to
-  // drill in, and otherwise fall back, since we must be in an older version of dream.
-  const credentials =
-    dreamconf.dbCredentials[connectionName]?.primary ||
-    dreamconf.dbCredentials.primary
-
-  if (!credentials)
-    throw new Error(
-      `Failed to locate db credentials for connectionName: ${connectionName}`,
-    )
-
-  const client = new pg.Client({
-    host: credentials.host || "localhost",
-    port: credentials.port,
-    database: await resolveDatabaseName(
-      dreamconf,
-      connectionName,
-      credentials.name,
-    ),
-    user: credentials.user,
-    password: credentials.password,
-  })
-  await client.connect()
-
-  await client.query(
-    `
-DO $$
-DECLARE row RECORD;
-BEGIN
-FOR row IN SELECT table_name
-  FROM information_schema.tables
-  WHERE table_type='BASE TABLE'
-  AND table_schema='public'
-  AND table_name NOT IN ('kysely_migration', 'kysely_migration_lock')
-LOOP
-  EXECUTE format('TRUNCATE TABLE %I CASCADE;',row.table_name);
-END LOOP;
-END;
-$$;
-`,
-  )
-  await client.end()
-}
-
-// Resolve the database `truncate` should connect to. As of @rvoh/dream's
-// per-live-worker test-database pool, the worker claims a database via a
-// Postgres advisory lock and `dreamconf.testDatabaseName` is the single source
-// of truth for the claimed name — `truncate` opens its own `pg.Client`, so it
-// must read (and, if needed, trigger) that claim rather than recomputing a
-// name from VITEST_POOL_ID, which is a reusable slot id that overlapping
-// workers share. Older dream versions lack `testDatabaseName`; for those we
-// fall back to the legacy VITEST_POOL_ID-based name.
-async function resolveDatabaseName(
-  dreamconf: any,
-  connectionName: string,
-  dbName: string,
-): Promise<string> {
-  if (typeof dreamconf.testDatabaseName === "function") {
-    return await dreamconf.testDatabaseName(connectionName, "primary")
-  }
-  return legacyDatabaseName(dreamconf, dbName)
-}
-
-function legacyDatabaseName(dreamconf: any, dbName: string): string {
-  return parallelDatabasesEnabled(dreamconf)
-    ? `${dbName}_${process.env.VITEST_POOL_ID}`
-    : dbName
-}
-
-function parallelDatabasesEnabled(dreamconf: any): boolean {
-  return (
-    !!dreamconf.parallelTests &&
-    !Number.isNaN(Number(process.env.VITEST_POOL_ID)) &&
-    Number(process.env.VITEST_POOL_ID) > 1
-  )
+  return await cleanTestDb(DreamApp, connectionName)
 }
