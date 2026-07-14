@@ -1,3 +1,7 @@
+## 2.3.1
+
+- fix: `cleanTestDb`'s cached long-lived `pg.Client` now has an `'error'` listener. Previously, if the test Postgres dropped the connection mid-suite (e.g., a restart), the idle client emitted `'error'` with no listener, which became an uncaughtException that killed the vitest worker with a raw pg stack. The error is now logged comprehensibly and the cache entry is evicted, so the next `cleanTestDb` call reconnects.
+
 ## 2.3.0
 
 - new `cleanTestDb(DreamApp, connectionName?)` export: cleans the test database between specs with dirty-table detection. Instead of truncating every table on every call, it probes which tables actually contain rows (a single statement of per-table `EXISTS` checks on a persistent connection) and cleans exactly those — `DELETE FROM` in children-first foreign-key order, batched into one round trip, with foreign-key-cycle groups cleaned via one multi-table `TRUNCATE ... CASCADE`. A spec that wrote nothing pays ~0.5ms instead of ~40ms; writing specs pay ~1ms. Semantics are unchanged: all rows gone at each spec start, sequences untouched, `kysely_migration`/`kysely_migration_lock` left alone, `NODE_ENV === 'test'` only.
