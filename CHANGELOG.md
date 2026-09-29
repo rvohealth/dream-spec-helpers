@@ -1,3 +1,8 @@
+## 2.4.0
+
+- Set the supported Node runtime floor to 24, with Node 26 as the primary CI and release runtime. Keep Node 26 development typings and verify Node 24 build and ESM runtime compatibility.
+- The existing CommonJS package index limitation with Vitest remains; see the 2.3.0 entry. This release supports the ESM runtime entry and does not change public peer dependencies.
+
 ## 2.3.0
 
 - new `cleanTestDb(DreamApp, connectionName?)` export: cleans the test database between specs with dirty-table detection. Instead of truncating every table on every call, it probes which tables actually contain rows (a single statement of per-table `EXISTS` checks on a persistent connection) and cleans exactly those — `DELETE FROM` in children-first foreign-key order, batched into one round trip, with foreign-key-cycle groups cleaned via one multi-table `TRUNCATE ... CASCADE`. A spec that wrote nothing pays ~0.5ms instead of ~40ms; writing specs pay ~1ms. Semantics are unchanged: all rows gone at each spec start, sequences untouched, `kysely_migration`/`kysely_migration_lock` left alone, `NODE_ENV === 'test'` only.
