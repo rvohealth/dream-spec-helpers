@@ -33,7 +33,8 @@
     "build": "echo \"building dream-spec-helpers...\" && rm -rf dist && tsc -p ./tsconfig.cjs.build.json && tsc -p ./tsconfig.esm.build.json && echo '{\"type\":\"commonjs\"}' > dist/cjs/package.json",
     "format": "pnpm prettier . --write",
     "prepack": "pnpm build",
-    "lint": "pnpm eslint --no-warn-ignored \"src/**/*.ts\" && pnpm prettier . --check"
+    "lint": "pnpm eslint --no-warn-ignored \"src/**/*.ts\" \"spec/**/*.ts\" && pnpm prettier . --check",
+    "spec": "vitest run"
   },
   "peerDependencies": {
     "@types/node": "*",

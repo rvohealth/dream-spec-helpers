@@ -35,10 +35,9 @@ for apps built on [Dream ORM](https://github.com/rvohealth/dream).
     fails with `MODULE_NOT_FOUND` for `.../pnpm/12.14.0/bin/pnpm.cjs`. On an
     older Node 24, run `npm i -g corepack@0.34.7` first, or use Node 26 or a
     standalone pnpm.
-- **No services are needed** to build or lint this package. It has no spec
-  suite of its own, so neither Postgres nor Redis is required here.
-  (`cleanTestDb` talks to Postgres, but only when a consuming app's specs call
-  it.)
+- **No services are needed** to build, lint or run the specs that exist
+  today; they use stand-in models, not a database. CI also starts a Postgres
+  service for specs that need one.
 
 ## Setup
 
@@ -53,11 +52,12 @@ There are no env files, databases or browsers to set up.
 
 ## Running checks
 
-| Command       | What it does                                                                                                                 |
-| ------------- | ---------------------------------------------------------------------------------------------------------------------------- |
-| `pnpm build`  | Type-checks and compiles `src/` to `dist/cjs`, `dist/esm` and `dist/types`. This is the type-check, so run it after changes. |
-| `pnpm lint`   | ESLint on `src/**/*.ts`, then `prettier . --check` on the whole repo.                                                        |
-| `pnpm format` | `prettier . --write`, which fixes formatting.                                                                                |
+| Command       | What it does                                                                                                                                       |
+| ------------- | -------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `pnpm build`  | Type-checks and compiles `src/` to `dist/cjs`, `dist/esm` and `dist/types`. This is the type-check, so run it after changes.                       |
+| `pnpm lint`   | ESLint on `src/**/*.ts` and `spec/**/*.ts`, then `prettier . --check` on the whole repo.                                                           |
+| `pnpm spec`   | Runs the specs in `spec/` once with Vitest (config: `vitest.config.ts`). Pass a path to run one file: `pnpm spec spec/toMatchDreamModels.spec.ts`. |
+| `pnpm format` | `prettier . --write`, which fixes formatting.                                                                                                      |
 
 `prettier . --check` also checks untracked files in the working tree. A local
 scratch note at the repo root that Prettier has not formatted will therefore
@@ -65,8 +65,10 @@ make `pnpm lint` fail on your machine even though CI passes.
 
 CI (`.github/workflows/ci.yml`) runs on every push and pull request, on
 Node 24 and Node 26. Each run does `corepack enable`, then
-`pnpm install --frozen-lockfile`, `pnpm build` and `pnpm lint`. The Node 24 job
-also loads the built ESM entry and checks that the type declarations exist:
+`pnpm install --frozen-lockfile`, `pnpm build`, `pnpm lint` and `pnpm spec`,
+with a Postgres service available to the specs (its connection settings are in
+the job's `DB_*` environment variables). The Node 24 job also loads the built
+ESM entry and checks that the type declarations exist:
 
 ```sh
 node --input-type=module -e "import('./dist/esm/src/index.js')"
@@ -75,8 +77,9 @@ test -f dist/types/src/index.d.ts
 
 ### Trying a change against a real app
 
-This repo has no specs, so its behavior is tested through the specs of the
-packages that depend on it. For example, `@rvoh/dream` imports it in
+This repo's specs exercise the helpers with stand-in models, so the
+integration with a real Dream app is tested through the specs of the packages
+that depend on it. For example, `@rvoh/dream` imports it in
 `spec/setup/hooks.ts`, and `@rvoh/psychic` and `@rvoh/psychic-spec-helpers`
 also depend on it. To check a change, build it here and run that consumer's
 spec suite against your local build, following the consumer's own

@@ -205,29 +205,24 @@ export default function provideDreamViteMatchers(Dream: any) {
         }
       }
 
-      let results: CustomMatcherResult
-
       received = sortBy(received, (a) => a?.comparisonKey)
       expected = sortBy(expected, (a) => a?.comparisonKey)
 
-      received.forEach((receivedElement: any, i: number) => {
-        results = expectMatchingDreamModels(
+      // every sorted pair must match; the first pair that does not decides
+      for (let i = 0; i < received.length; i++) {
+        const results = expectMatchingDreamModels(
           Dream,
-          receivedElement,
+          received[i],
           expected[i],
           "toMatchDreamModels",
         )
-        if (!results.pass) return
-      })
+        if (!results.pass) return results
+      }
 
-      if (results!.pass) {
-        return {
-          pass: true,
-          message: () =>
-            "Expected arrays of Dream objects not to match, but they do",
-        }
-      } else {
-        return results!
+      return {
+        pass: true,
+        message: () =>
+          "Expected arrays of Dream objects not to match, but they do",
       }
     },
   })

@@ -1,3 +1,7 @@
+## 2.5.0
+
+- fix: `toMatchDreamModels` now compares every pair of models. It sorts both arrays and is meant to pass only when each pair has the same class and primary key, but it used to decide on the last sorted pair alone, so a spec asserting the wrong set of models passed whenever the last pair happened to match (for example, `expect([place2, place3]).toMatchDreamModels([place1, place3])`). Such specs now fail, each one pointing at a spec that was not checking what it claimed. Negated assertions (`.not.toMatchDreamModels`) can only go from failing to passing. Assertions on empty or single-model arrays, and on arrays of different lengths, behave as before.
+
 ## 2.4.0
 
 - Set the supported Node runtime floor to 24, with Node 26 as the primary CI and release runtime. Keep Node 26 development typings and verify Node 24 build and ESM runtime compatibility.
