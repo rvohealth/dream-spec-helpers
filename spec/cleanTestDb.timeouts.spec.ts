@@ -92,6 +92,12 @@ beforeAll(async () => {
     );
     ALTER TABLE cycle_a ADD FOREIGN KEY (cycle_b_id)
       REFERENCES cycle_b (id) ON DELETE RESTRICT;
+    -- outside the cycle, but TRUNCATE ... CASCADE of the cycle group
+    -- truncates it too
+    CREATE TABLE leaf (
+      id serial PRIMARY KEY,
+      cycle_a_id int REFERENCES cycle_a (id) ON DELETE RESTRICT
+    );
 
     CREATE FUNCTION take_longer_than_the_limit() RETURNS trigger
       LANGUAGE plpgsql AS $$
@@ -117,7 +123,7 @@ beforeAll(async () => {
 beforeEach(async () => {
   // TRUNCATE fires no DELETE triggers
   await db.query(
-    "TRUNCATE parents, children, cycle_a, cycle_b, slow_to_delete, slow_to_commit CASCADE",
+    "TRUNCATE parents, children, cycle_a, cycle_b, leaf, slow_to_delete, slow_to_commit CASCADE",
   )
 })
 
@@ -210,5 +216,27 @@ describe("cleanTestDb's time limit", () => {
     await reader.query("ROLLBACK")
     await cleanTestDb(DreamApp)
     expect(await rowCount("cycle_a")).toBe(0)
+  }, 15_000)
+})
+
+describe("cleanTestDb's time-limit error", () => {
+  it("names a connection holding a table that the foreign-key cycle group's TRUNCATE ... CASCADE also truncates", async () => {
+    await db.query("INSERT INTO cycle_a (id) VALUES (1)")
+    // leaf references cycle_a, so the TRUNCATE needs leaf too
+    const reader = await otherConnection()
+    const readerPid = await pidOf(reader)
+    await reader.query("BEGIN; SELECT count(*) FROM leaf")
+
+    const { error, elapsed } = await timed(cleanTestDb(DreamApp))
+
+    expect(elapsed).toBeLessThan(10_000)
+    expect(error?.message).toContain(
+      `cleanTestDb could not clean database "${DATABASE}" within 5000ms: it was waiting to clean its dirty tables`,
+    )
+    expect(error?.message).toContain(
+      `table "leaf" is locked (AccessShareLock) by the connection with pid ${readerPid} (state: idle in transaction`,
+    )
+
+    await reader.query("ROLLBACK")
   }, 15_000)
 })

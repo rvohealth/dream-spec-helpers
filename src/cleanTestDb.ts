@@ -200,8 +200,10 @@ function settledBefore(
 interface CleanProgress {
   // "lock": taking the up-front write locks (blocked by writers)
   // "clean": deleting/truncating dirty tables (blocked by row locks, and
-  //          for TRUNCATE by any open transaction that touched the table)
+  //          for TRUNCATE by any open transaction that touched the table or
+  //          a table the TRUNCATE cascades to)
   stage: "lock" | "clean"
+  // the tables to search for the lock holders that blocked it
   tables: string[]
 }
 
@@ -262,7 +264,11 @@ async function cleanOnce(
     step.tables.some((table) => dirtyTables.has(table)),
   )
   progress.stage = "clean"
-  progress.tables = dirtySteps.flatMap((step) => step.tables)
+  // every table, not just the dirty ones: a cycle group's TRUNCATE ... CASCADE
+  // also needs the tables that reference the group, directly or not. The
+  // clean holds a write lock on all of them, so a holder found on any of them
+  // is a transaction that is still open.
+  progress.tables = cache.tables
 
   await client.query(`${cleanBlockSql(dirtySteps, deadline)};\nCOMMIT`)
 }
@@ -374,13 +380,15 @@ async function describeFailure(
     : `no other connection still holds a conflicting lock on those tables, so whatever blocked it finished just after the limit.`
 
   return new Error(
-    `cleanTestDb could not clean database "${cache.database}" within ${CLEAN_TIME_LIMIT_MS}ms: it was waiting ${waitingFor}, and ${heldBy} cleanTestDb waits for writes in progress so that every table is empty at the start of each spec; a connection that keeps a transaction open (often server work from the previous spec that is still running, or a transaction a spec never committed or rolled back) blocks it. Commit or roll back that transaction, or close the connection.`,
+    `cleanTestDb could not clean database "${cache.database}" within ${CLEAN_TIME_LIMIT_MS}ms: it was waiting ${waitingFor}, and ${heldBy} cleanTestDb waits for writes in progress so that every table is empty at the start of each spec; a connection that keeps a transaction open (often server work from the previous spec that is still running, or a transaction a spec never committed or rolled back) blocks it. Commit or roll back that transaction, or close the connection. A transaction that waits for a write on another connection cannot finish while the clean waits, because that write waits for the clean.`,
     { cause: error },
   )
 }
 
 // other connections holding a granted lock on the tables the clean was waiting
-// for, in a mode that conflicts with what the clean needed at that stage
+// for, in a mode that conflicts with what the clean needed at that stage (in
+// the clean stage, any mode: row locks and TRUNCATE's ACCESS EXCLUSIVE lock
+// conflict with them all)
 async function lockHolders(
   cache: ConnectionCache,
   progress: CleanProgress,
