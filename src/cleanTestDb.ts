@@ -54,6 +54,8 @@ interface ConnectionCache {
   client: any
   database: string
   tables: string[]
+  // the tables the up-front LOCK covers: those the database user may clean
+  lockedTables: string[]
   lockSql: string
   probeSql: string
   cleanSteps: CleanStep[]
@@ -88,11 +90,11 @@ const connectionCaches = new Map<string, Promise<ConnectionCache>>()
  *
  * Like a full truncate, the clean waits for writes already in progress on
  * other connections (for example, server work from the previous spec that is
- * still running): it first locks every table against writes (`LOCK TABLE ...
- * IN SHARE ROW EXCLUSIVE MODE`; reads are not blocked), then probes and
- * cleans in that same transaction, so a row committed mid-clean can neither
- * break a foreign key nor be left behind. Writes that arrive during the clean
- * wait for it to finish.
+ * still running): it first locks every table the database user may write
+ * against writes (`LOCK TABLE ... IN SHARE ROW EXCLUSIVE MODE`; reads are not
+ * blocked), then probes and cleans in that same transaction, so a row
+ * committed mid-clean can neither break a foreign key nor be left behind.
+ * Writes that arrive during the clean wait for it to finish.
  *
  * Waiting is limited to 5 seconds from the start of the call, below Vitest's
  * default 10 second hook timeout: if another connection still holds a lock
@@ -212,7 +214,10 @@ async function cleanWithRetries(
   deadline: number,
 ): Promise<void> {
   for (let attempt = 1; ; attempt++) {
-    const progress: CleanProgress = { stage: "lock", tables: cache.tables }
+    const progress: CleanProgress = {
+      stage: "lock",
+      tables: cache.lockedTables,
+    }
     try {
       await cleanOnce(cache, deadline, progress)
       return
@@ -231,10 +236,13 @@ async function cleanWithRetries(
   }
 }
 
-// One transaction: lock every table against writes, then probe and clean.
-// Once the lock is held, no other connection can insert, update or delete in
-// these tables until COMMIT, so the probe is authoritative: every row already
-// committed is seen, and no row can be committed between probe and clean.
+// One transaction: lock every table the database user may clean against
+// writes, then probe and clean. Once the lock is held, no other connection can
+// insert, update or delete in these tables until COMMIT, so the probe is
+// authoritative: every row already committed is seen, and no row can be
+// committed between probe and clean. (A table the user may not write is not
+// locked; if it has rows, cleaning it fails, as it did before the clean took
+// locks.)
 async function cleanOnce(
   cache: ConnectionCache,
   deadline: number,
@@ -250,7 +258,9 @@ async function cleanOnce(
   // took locks.
   await client.query(`BEGIN; ${statementTimeoutUntil(deadline)}`)
   const lockAndProbe = await client.query(
-    `${cache.lockSql};\nSET LOCAL statement_timeout TO DEFAULT;\n${cache.probeSql}`,
+    [cache.lockSql, "SET LOCAL statement_timeout TO DEFAULT", cache.probeSql]
+      .filter(Boolean)
+      .join(";\n"),
   )
   const { rows } = lockAndProbe[lockAndProbe.length - 1]
   const dirtyTables = new Set<string>(rows.map((row: any) => row.table_name))
@@ -266,8 +276,8 @@ async function cleanOnce(
   progress.stage = "clean"
   // every table, not just the dirty ones: a cycle group's TRUNCATE ... CASCADE
   // also needs the tables that reference the group, directly or not. The
-  // clean holds a write lock on all of them, so a holder found on any of them
-  // is a transaction that is still open.
+  // clean holds a write lock on every table it may clean, so a holder found on
+  // any of those is a transaction that is still open.
   progress.tables = cache.tables
 
   await client.query(`${cleanBlockSql(dirtySteps, deadline)};\nCOMMIT`)
@@ -487,12 +497,14 @@ async function buildConnectionCache(
 
   const tables = await tableList(client)
   const cleanSteps = buildCleanSteps(tables, await foreignKeyEdges(client))
+  const lockedTables = lockOrder(cleanSteps, await cleanableTables(client))
 
   return {
     client,
     database,
     tables,
-    lockSql: buildLockSql(cleanSteps),
+    lockedTables,
+    lockSql: buildLockSql(lockedTables),
     probeSql: buildProbeSql(tables),
     cleanSteps,
     queueTail: Promise.resolve(),
@@ -503,17 +515,40 @@ async function buildConnectionCache(
   }
 }
 
-// Locks every table, parents first (the reverse of the children-first clean
+// The tables to lock, parents first (the reverse of the children-first clean
 // order). A writer usually inserts a parent row before its children, so
 // taking the parent first makes the clean wait for such a writer to finish
 // rather than deadlock with it.
-function buildLockSql(cleanSteps: CleanStep[]): string {
-  const tables = cleanSteps
+function lockOrder(cleanSteps: CleanStep[], cleanable: Set<string>): string[] {
+  return cleanSteps
     .slice()
     .reverse()
     .flatMap((step) => step.tables)
+    .filter((table) => cleanable.has(table))
+}
+
+function buildLockSql(tables: string[]): string {
   if (!tables.length) return ""
   return `LOCK TABLE ${tables.map(quoteIdentifier).join(", ")} IN SHARE ROW EXCLUSIVE MODE`
+}
+
+// The public tables the database user may clean. `LOCK TABLE ... IN SHARE ROW
+// EXCLUSIVE MODE` needs UPDATE, DELETE or TRUNCATE privilege (owners and
+// superusers have them all), so locking a table the user may only read would
+// fail every clean, even with that table empty. Such a table cannot be
+// cleaned anyway: once it has rows, the DELETE or TRUNCATE fails, as it did
+// before the clean took locks.
+async function cleanableTables(client: any): Promise<Set<string>> {
+  const { rows } = await client.query(
+    `
+SELECT relname AS table_name
+FROM pg_class
+WHERE relnamespace = 'public'::regnamespace
+AND relkind IN ('r', 'p')
+AND has_table_privilege(oid, 'UPDATE, DELETE, TRUNCATE')
+`,
+  )
+  return new Set(rows.map((row: any) => row.table_name))
 }
 
 async function tableList(client: any): Promise<string[]> {
