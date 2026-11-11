@@ -52,6 +52,10 @@ jobs:
       - name: Build
         run: pnpm build
 
+      # the build type-checks src/ only; this also checks spec/
+      - name: Type-check
+        run: pnpm typecheck
+
       - name: Lint
         run: pnpm lint
 

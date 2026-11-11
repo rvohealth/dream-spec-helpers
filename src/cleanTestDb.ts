@@ -12,6 +12,30 @@ const pg: any = (pgImport as any).Client
 
 const EXCLUDED_TABLES = ["kysely_migration", "kysely_migration_lock"]
 
+// The whole clean — waiting for another clean on the same cached connection,
+// every lock wait, the cycle-group TRUNCATE and any deadlock retries — must
+// finish within this many milliseconds. It sits well below Vitest's default
+// 10s hook timeout, so a connection that holds a transaction open fails the
+// spec with an error naming that connection rather than a bare hook timeout.
+const CLEAN_TIME_LIMIT_MS = 5000
+
+// When Postgres breaks a deadlock between the clean and another connection by
+// aborting the clean, the clean starts over, up to this many attempts in all
+// (each deadlock costs Postgres' `deadlock_timeout`, 1s by default, to detect)
+const MAX_CLEAN_ATTEMPTS = 3
+
+// the table lock modes another connection can hold that make the up-front
+// `SHARE ROW EXCLUSIVE` lock wait (INSERT/UPDATE/DELETE take ROW EXCLUSIVE;
+// plain reads and `SELECT ... FOR UPDATE/SHARE` do not conflict)
+const MODES_BLOCKING_SHARE_ROW_EXCLUSIVE = [
+  "RowExclusiveLock",
+  "ShareUpdateExclusiveLock",
+  "ShareLock",
+  "ShareRowExclusiveLock",
+  "ExclusiveLock",
+  "AccessExclusiveLock",
+]
+
 // A single step of the cleaning plan, in children-first order:
 // - "delete": one acyclic table, cleaned with `DELETE FROM` when dirty
 // - "truncateGroup": all members of a foreign-key cycle, cleaned together with
@@ -24,8 +48,18 @@ interface CleanStep {
 
 interface ConnectionCache {
   client: any
+  database: string
+  tables: string[]
+  lockSql: string
   probeSql: string
   cleanSteps: CleanStep[]
+  // settles when the last clean queued on this client has finished; a clean
+  // spans several round trips of one transaction, so cleans sharing the
+  // client must run one after another, never interleaved
+  queueTail: Promise<void>
+  // evicts this entry from the cache and closes its client, so the next call
+  // reconnects (used when the client may be stuck inside a transaction)
+  discard: () => void
 }
 
 // Persistent client + cleaning plan per (connection name, resolved database).
@@ -43,10 +77,23 @@ const connectionCaches = new Map<string, Promise<ConnectionCache>>()
  * probes which tables actually contain rows — a single statement of per-table
  * `EXISTS` checks on a persistent connection, which is close to free — and
  * cleans exactly those. Dirty tables are removed children-first along the
- * cached foreign-key dependency order with `DELETE FROM`, batched into one
- * round trip; a dirty member of a foreign-key cycle causes its whole cycle
- * group to be cleaned with one multi-table `TRUNCATE ... CASCADE`. For a spec
- * that wrote nothing, the entire call is a ~1ms no-op.
+ * cached foreign-key dependency order with `DELETE FROM`; a dirty member of a
+ * foreign-key cycle causes its whole cycle group to be cleaned with one
+ * multi-table `TRUNCATE ... CASCADE`. For a spec that wrote nothing, the
+ * entire call is a ~1ms no-op.
+ *
+ * Like a full truncate, the clean waits for writes already in progress on
+ * other connections (for example, server work from the previous spec that is
+ * still running): it first locks every table against writes (`LOCK TABLE ...
+ * IN SHARE ROW EXCLUSIVE MODE`; reads are not blocked), then probes and
+ * cleans in that same transaction, so a row committed mid-clean can neither
+ * break a foreign key nor be left behind. Writes that arrive during the clean
+ * wait for it to finish. The whole clean is bounded at 5 seconds, below
+ * Vitest's default 10 second hook timeout: if another connection keeps a
+ * transaction open on these tables for that long (for example, a transaction
+ * a spec never committed), it throws an error naming the table and the
+ * blocking connection. If Postgres breaks a deadlock with another connection
+ * by aborting the clean, the clean is retried, a few times at most.
  *
  * The connection, table list, and dependency order are cached per
  * (connectionName, resolved database) for the life of the spec worker; the
@@ -92,24 +139,245 @@ export default async function cleanTestDb(
   const cache = await connectionCache(connectionName, database, credentials)
   if (!cache.probeSql) return // empty schema: nothing to clean
 
-  const { rows } = await cache.client.query(cache.probeSql)
-  const dirtyTables = new Set<string>(rows.map((row: any) => row.table_name))
-  if (dirtyTables.size === 0) return
+  const deadline = Date.now() + CLEAN_TIME_LIMIT_MS
+  await runAlone(cache, deadline, () => cleanWithRetries(cache, deadline))
+}
 
-  const statements: string[] = []
-  for (const step of cache.cleanSteps) {
-    if (!step.tables.some((table) => dirtyTables.has(table))) continue
+// Runs `task` once every clean queued earlier on this cache's client has
+// finished. Waiting for them counts against this clean's deadline.
+async function runAlone(
+  cache: ConnectionCache,
+  deadline: number,
+  task: () => Promise<void>,
+): Promise<void> {
+  const previous = cache.queueTail
+  let finish!: () => void
+  const finished = new Promise<void>((resolve) => (finish = resolve))
+  // a later clean waits for `previous` as well as this one, so it can never
+  // overlap `previous` even if this clean gives up waiting early
+  cache.queueTail = previous.then(() => finished)
 
-    if (step.kind === "delete") {
-      statements.push(`DELETE FROM ${quoteIdentifier(step.tables[0])}`)
-    } else {
-      statements.push(
-        `TRUNCATE TABLE ${step.tables.map(quoteIdentifier).join(", ")} CASCADE`,
+  try {
+    await settledBefore(previous, deadline, cache)
+    await task()
+  } finally {
+    finish()
+  }
+}
+
+function settledBefore(
+  previous: Promise<void>,
+  deadline: number,
+  cache: ConnectionCache,
+): Promise<void> {
+  let timer: ReturnType<typeof setTimeout> | undefined
+  const timedOut = new Promise<never>((_, reject) => {
+    timer = setTimeout(
+      () =>
+        reject(
+          new Error(
+            `cleanTestDb could not clean database "${cache.database}" within ${CLEAN_TIME_LIMIT_MS}ms: it was still waiting for an earlier cleanTestDb call on the same connection to finish. Await each cleanTestDb call before starting another one for the same connection.`,
+          ),
+        ),
+      Math.max(0, deadline - Date.now()),
+    )
+  })
+  return Promise.race([previous, timedOut]).finally(() => clearTimeout(timer))
+}
+
+// what the clean was doing when it failed, for the error message
+interface CleanProgress {
+  // "lock": taking the up-front write locks (blocked by writers)
+  // "clean": deleting/truncating dirty tables (blocked by row locks, and
+  //          for TRUNCATE by any open transaction that touched the table)
+  stage: "lock" | "clean"
+  tables: string[]
+}
+
+async function cleanWithRetries(
+  cache: ConnectionCache,
+  deadline: number,
+): Promise<void> {
+  for (let attempt = 1; ; attempt++) {
+    const progress: CleanProgress = { stage: "lock", tables: cache.tables }
+    try {
+      await cleanOnce(cache, deadline, progress)
+      return
+    } catch (error) {
+      await rollback(cache)
+
+      if (
+        isDeadlock(error) &&
+        attempt < MAX_CLEAN_ATTEMPTS &&
+        Date.now() < deadline
       )
+        continue
+
+      throw await describeFailure(cache, error, attempt, progress, deadline)
     }
   }
+}
 
-  await cache.client.query(statements.join(";\n"))
+// One transaction: lock every table against writes, then probe and clean.
+// Once the lock is held, no other connection can insert, update or delete in
+// these tables until COMMIT, so the probe is authoritative: every row already
+// committed is seen, and no row can be committed between probe and clean.
+async function cleanOnce(
+  cache: ConnectionCache,
+  deadline: number,
+  progress: CleanProgress,
+): Promise<void> {
+  const client = cache.client
+
+  await client.query(`BEGIN; ${statementTimeoutUntil(deadline)}`)
+  const lockAndProbe = await client.query(
+    `${cache.lockSql};\n${cache.probeSql}`,
+  )
+  const { rows } = lockAndProbe[lockAndProbe.length - 1]
+  const dirtyTables = new Set<string>(rows.map((row: any) => row.table_name))
+
+  if (dirtyTables.size === 0) {
+    await client.query("COMMIT")
+    return
+  }
+
+  const dirtySteps = cache.cleanSteps.filter((step) =>
+    step.tables.some((table) => dirtyTables.has(table)),
+  )
+  progress.stage = "clean"
+  progress.tables = dirtySteps.flatMap((step) => step.tables)
+
+  // the statements run as one DO block, a single statement, so the timeout
+  // bounds all of them together rather than each one separately
+  await client.query(statementTimeoutUntil(deadline))
+  await client.query(`${cleanBlockSql(dirtySteps)};\nCOMMIT`)
+}
+
+// Postgres' `lock_timeout` applies to each lock wait separately, so the time
+// left is enforced with `statement_timeout`, re-set before each statement
+// that may wait; SET LOCAL reverts when the transaction ends
+function statementTimeoutUntil(deadline: number): string {
+  const remaining = deadline - Date.now()
+  if (remaining < 1) throw new DeadlineReached()
+  return `SET LOCAL statement_timeout = ${Math.ceil(remaining)}`
+}
+
+class DeadlineReached extends Error {}
+
+function cleanBlockSql(steps: CleanStep[]): string {
+  const statements = steps.map((step) =>
+    step.kind === "delete"
+      ? `DELETE FROM ${quoteIdentifier(step.tables[0])};`
+      : `TRUNCATE TABLE ${step.tables.map(quoteIdentifier).join(", ")} CASCADE;`,
+  )
+  const body = `BEGIN\n${statements.join("\n")}\nEND`
+
+  // a dollar-quote tag that cannot occur in the (quoted) table names
+  let tag = "$clean$"
+  for (let n = 1; body.includes(tag); n++) tag = `$clean${n}$`
+
+  return `DO ${tag}\n${body}\n${tag}`
+}
+
+async function rollback(cache: ConnectionCache): Promise<void> {
+  try {
+    await cache.client.query("ROLLBACK")
+  } catch {
+    // the client may still be inside the failed transaction, which would
+    // break every later clean on it; replace it instead
+    cache.discard()
+  }
+}
+
+function isDeadlock(error: any): boolean {
+  return error?.code === "40P01"
+}
+
+function isTimeout(error: any, deadline: number): boolean {
+  return (
+    error instanceof DeadlineReached ||
+    // query_canceled: our statement_timeout, which fires at or after the
+    // deadline (a cancel requested by hand before then is not a timeout)
+    (error?.code === "57014" && Date.now() >= deadline) ||
+    // lock_not_available: a lock_timeout configured for the database or role
+    error?.code === "55P03"
+  )
+}
+
+async function describeFailure(
+  cache: ConnectionCache,
+  error: any,
+  attempts: number,
+  progress: CleanProgress,
+  deadline: number,
+): Promise<unknown> {
+  if (isDeadlock(error)) {
+    const reason =
+      attempts < MAX_CLEAN_ATTEMPTS
+        ? `deadlocked with another connection and ran out of time to retry`
+        : `deadlocked with another connection ${attempts} times in a row`
+    return new Error(
+      `cleanTestDb could not clean database "${cache.database}": it ${reason} (each time, Postgres broke the deadlock by aborting the clean). Postgres reported: ${error.message}${error.detail ? ` ${error.detail}` : ""} A connection that is still writing to several tables (often server work from the previous spec that is still running) can deadlock with the clean.`,
+      { cause: error },
+    )
+  }
+
+  if (!isTimeout(error, deadline)) return error
+
+  const blockers = await lockHolders(cache, progress)
+  const waitingFor =
+    progress.stage === "lock"
+      ? "to lock its tables against writes"
+      : "to clean its dirty tables"
+  const heldBy = blockers.length
+    ? `another connection still holds a conflicting lock: ${blockers.join("; ")}.`
+    : `no other connection still holds a conflicting lock on those tables, so whatever blocked it finished just after the limit.`
+
+  return new Error(
+    `cleanTestDb could not clean database "${cache.database}" within ${CLEAN_TIME_LIMIT_MS}ms: it was waiting ${waitingFor}, and ${heldBy} cleanTestDb waits for writes in progress so that every table is empty at the start of each spec; a connection that keeps a transaction open (often server work from the previous spec that is still running, or a transaction a spec never committed or rolled back) blocks it. Commit or roll back that transaction, or close the connection.`,
+    { cause: error },
+  )
+}
+
+// other connections holding a granted lock on the tables the clean was waiting
+// for, in a mode that conflicts with what the clean needed at that stage
+async function lockHolders(
+  cache: ConnectionCache,
+  progress: CleanProgress,
+): Promise<string[]> {
+  try {
+    const { rows } = await cache.client.query(
+      `
+SELECT c.relname AS table_name, l.mode, a.pid, a.state, a.application_name, a.query
+FROM pg_locks l
+JOIN pg_class c ON c.oid = l.relation
+JOIN pg_stat_activity a ON a.pid = l.pid
+WHERE l.locktype = 'relation'
+AND l.granted
+AND l.pid <> pg_backend_pid()
+AND l.database = (SELECT oid FROM pg_database WHERE datname = current_database())
+AND c.relnamespace = 'public'::regnamespace
+AND c.relname = ANY($1::text[])
+AND ($2::text[] IS NULL OR l.mode = ANY($2::text[]))
+ORDER BY c.relname, a.pid, l.mode
+`,
+      [
+        progress.tables,
+        progress.stage === "lock" ? MODES_BLOCKING_SHARE_ROW_EXCLUSIVE : null,
+      ],
+    )
+    return rows.map(
+      (row: any) =>
+        `table "${row.table_name}" is locked (${row.mode}) by the connection with pid ${row.pid} (state: ${row.state ?? "unknown"}${row.application_name ? `, application_name: "${row.application_name}"` : ""}${row.query ? `, last query: ${JSON.stringify(shorten(row.query, 200))}` : ""})`,
+    )
+  } catch {
+    // the error being described matters more than this diagnosis
+    return []
+  }
+}
+
+function shorten(text: string, length: number): string {
+  return text.length > length ? `${text.slice(0, length)}…` : text
 }
 
 function connectionCache(
@@ -149,18 +417,20 @@ async function buildConnectionCache(
   // kills the vitest worker with a raw pg stack. Log comprehensibly and evict
   // this cache entry so the next cleanTestDb call reconnects. The listener
   // stays attached for the client's lifetime (a dead client may emit 'error'
-  // more than once); only the first error evicts, so a later error from this
-  // client can never evict a replacement entry.
+  // more than once); only the first eviction deletes the entry, so a later
+  // error from this client can never evict a replacement entry.
   let evicted = false
+  const evict = () => {
+    if (evicted) return
+    evicted = true
+    connectionCaches.delete(cacheKey)
+  }
   client.on("error", (error: Error) => {
     console.error(
       `cleanTestDb: cached connection to database "${database}" errored (${error.message}); discarding it — the next cleanTestDb call will reconnect`,
       error,
     )
-    if (!evicted) {
-      evicted = true
-      connectionCaches.delete(cacheKey)
-    }
+    evict()
   })
 
   // the client stays open for the rest of the spec run; unref its socket so
@@ -168,12 +438,34 @@ async function buildConnectionCache(
   client.connection?.stream?.unref?.()
 
   const tables = await tableList(client)
+  const cleanSteps = buildCleanSteps(tables, await foreignKeyEdges(client))
 
   return {
     client,
+    database,
+    tables,
+    lockSql: buildLockSql(cleanSteps),
     probeSql: buildProbeSql(tables),
-    cleanSteps: buildCleanSteps(tables, await foreignKeyEdges(client)),
+    cleanSteps,
+    queueTail: Promise.resolve(),
+    discard: () => {
+      evict()
+      client.end().catch(() => {})
+    },
   }
+}
+
+// Locks every table, parents first (the reverse of the children-first clean
+// order). A writer usually inserts a parent row before its children, so
+// taking the parent first makes the clean wait for such a writer to finish
+// rather than deadlock with it.
+function buildLockSql(cleanSteps: CleanStep[]): string {
+  const tables = cleanSteps
+    .slice()
+    .reverse()
+    .flatMap((step) => step.tables)
+  if (!tables.length) return ""
+  return `LOCK TABLE ${tables.map(quoteIdentifier).join(", ")} IN SHARE ROW EXCLUSIVE MODE`
 }
 
 async function tableList(client: any): Promise<string[]> {

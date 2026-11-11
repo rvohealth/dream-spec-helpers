@@ -1,7 +1,7 @@
 {
   "type": "module",
   "name": "@rvoh/dream-spec-helpers",
-  "version": "2.4.0",
+  "version": "2.5.0",
   "description": "dream orm spec helpers",
   "engines": {
     "node": ">=24"
@@ -34,7 +34,8 @@
     "format": "pnpm prettier . --write",
     "prepack": "pnpm build",
     "lint": "pnpm eslint --no-warn-ignored \"src/**/*.ts\" \"spec/**/*.ts\" && pnpm prettier . --check",
-    "spec": "vitest run"
+    "spec": "vitest run",
+    "typecheck": "tsc --noEmit -p tsconfig.json"
   },
   "peerDependencies": {
     "@types/node": "*",
