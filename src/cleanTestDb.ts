@@ -12,11 +12,15 @@ const pg: any = (pgImport as any).Client
 
 const EXCLUDED_TABLES = ["kysely_migration", "kysely_migration_lock"]
 
-// The whole clean — waiting for another clean on the same cached connection,
-// every lock wait, the cycle-group TRUNCATE and any deadlock retries — must
-// finish within this many milliseconds. It sits well below Vitest's default
-// 10s hook timeout, so a connection that holds a transaction open fails the
-// spec with an error naming that connection rather than a bare hook timeout.
+// The clean stops waiting this many milliseconds after the call starts. The
+// limit covers waiting only: for an earlier clean on the same cached
+// connection, for locks other connections hold (table locks and row locks),
+// and for deadlock retries. The work itself (deleting, truncating, the
+// tables' triggers, and deferred constraint triggers, which run at COMMIT) is
+// not limited, so a large clean takes as long as it needs, as it did before
+// the clean took locks. The limit sits well below Vitest's default 10s hook
+// timeout, so a connection that holds a transaction open fails the spec with
+// an error naming that connection rather than a bare hook timeout.
 const CLEAN_TIME_LIMIT_MS = 5000
 
 // When Postgres breaks a deadlock between the clean and another connection by
@@ -88,12 +92,19 @@ const connectionCaches = new Map<string, Promise<ConnectionCache>>()
  * IN SHARE ROW EXCLUSIVE MODE`; reads are not blocked), then probes and
  * cleans in that same transaction, so a row committed mid-clean can neither
  * break a foreign key nor be left behind. Writes that arrive during the clean
- * wait for it to finish. The whole clean is bounded at 5 seconds, below
- * Vitest's default 10 second hook timeout: if another connection keeps a
- * transaction open on these tables for that long (for example, a transaction
- * a spec never committed), it throws an error naming the table and the
+ * wait for it to finish.
+ *
+ * Waiting is limited to 5 seconds from the start of the call, below Vitest's
+ * default 10 second hook timeout: if another connection still holds a lock
+ * the clean needs by then (for example, a transaction a spec never committed
+ * keeps a table locked against the clean's write lock, or keeps a row locked
+ * that the clean deletes), it throws an error naming the table and the
  * blocking connection. If Postgres breaks a deadlock with another connection
- * by aborting the clean, the clean is retried, a few times at most.
+ * by aborting the clean, the clean is retried, a few times at most, within
+ * the same 5 seconds. Only waiting is limited: the deletes themselves, the
+ * tables' triggers, and deferred constraint triggers (which run at COMMIT)
+ * take as long as they need, and can take a clean past 5 seconds, or past the
+ * hook timeout, without any error from `cleanTestDb`.
  *
  * The connection, table list, and dependency order are cached per
  * (connectionName, resolved database) for the life of the spec worker; the
@@ -229,9 +240,15 @@ async function cleanOnce(
 ): Promise<void> {
   const client = cache.client
 
+  // LOCK TABLE only waits, so `statement_timeout` limits its waits as a whole
+  // (`lock_timeout` would limit each table's wait separately). Postgres times
+  // each statement of a multi-statement query separately, so resetting the
+  // timeout after the LOCK leaves the probe, and the rest of the transaction,
+  // under the session's own statement_timeout, as they were before the clean
+  // took locks.
   await client.query(`BEGIN; ${statementTimeoutUntil(deadline)}`)
   const lockAndProbe = await client.query(
-    `${cache.lockSql};\n${cache.probeSql}`,
+    `${cache.lockSql};\nSET LOCAL statement_timeout TO DEFAULT;\n${cache.probeSql}`,
   )
   const { rows } = lockAndProbe[lockAndProbe.length - 1]
   const dirtyTables = new Set<string>(rows.map((row: any) => row.table_name))
@@ -247,15 +264,11 @@ async function cleanOnce(
   progress.stage = "clean"
   progress.tables = dirtySteps.flatMap((step) => step.tables)
 
-  // the statements run as one DO block, a single statement, so the timeout
-  // bounds all of them together rather than each one separately
-  await client.query(statementTimeoutUntil(deadline))
-  await client.query(`${cleanBlockSql(dirtySteps)};\nCOMMIT`)
+  await client.query(`${cleanBlockSql(dirtySteps, deadline)};\nCOMMIT`)
 }
 
-// Postgres' `lock_timeout` applies to each lock wait separately, so the time
-// left is enforced with `statement_timeout`, re-set before each statement
-// that may wait; SET LOCAL reverts when the transaction ends
+// Limits the up-front LOCK to the time left; SET LOCAL reverts when the
+// transaction ends
 function statementTimeoutUntil(deadline: number): string {
   const remaining = deadline - Date.now()
   if (remaining < 1) throw new DeadlineReached()
@@ -264,13 +277,31 @@ function statementTimeoutUntil(deadline: number): string {
 
 class DeadlineReached extends Error {}
 
-function cleanBlockSql(steps: CleanStep[]): string {
+// The clean's statements, as one DO block (a single round trip). Deleting and
+// truncating are work, which is not limited; only their lock waits are (for
+// rows another connection has locked, and for the cycle-group TRUNCATE's
+// ACCESS EXCLUSIVE lock). `lock_timeout` cuts off each wait without limiting
+// work, but applies to each wait separately, so it is set to the time left
+// before every statement. A statement that waits more than once (for rows
+// locked by several transactions in turn) gives each wait the time left when
+// the statement began, so it can still wait past the deadline. The last value
+// set also applies to lock waits in deferred constraint triggers at COMMIT.
+function cleanBlockSql(steps: CleanStep[], deadline: number): string {
+  const timeLeftMs = Math.max(1, Math.ceil(deadline - Date.now()))
+  // lock_timeout = 0 would mean no limit, hence the floor of 1ms
+  const limitLockWaits = `PERFORM set_config('lock_timeout', greatest(1, ceil(1000 * extract(epoch FROM waits_end - clock_timestamp())))::bigint::text, true);`
   const statements = steps.map((step) =>
     step.kind === "delete"
       ? `DELETE FROM ${quoteIdentifier(step.tables[0])};`
       : `TRUNCATE TABLE ${step.tables.map(quoteIdentifier).join(", ")} CASCADE;`,
   )
-  const body = `BEGIN\n${statements.join("\n")}\nEND`
+  const body = [
+    "DECLARE",
+    `waits_end CONSTANT timestamptz := clock_timestamp() + interval '${timeLeftMs} milliseconds';`,
+    "BEGIN",
+    ...statements.flatMap((statement) => [limitLockWaits, statement]),
+    "END",
+  ].join("\n")
 
   // a dollar-quote tag that cannot occur in the (quoted) table names
   let tag = "$clean$"
@@ -293,13 +324,22 @@ function isDeadlock(error: any): boolean {
   return error?.code === "40P01"
 }
 
-function isTimeout(error: any, deadline: number): boolean {
+function isTimeout(
+  error: any,
+  deadline: number,
+  progress: CleanProgress,
+): boolean {
   return (
     error instanceof DeadlineReached ||
-    // query_canceled: our statement_timeout, which fires at or after the
-    // deadline (a cancel requested by hand before then is not a timeout)
-    (error?.code === "57014" && Date.now() >= deadline) ||
-    // lock_not_available: a lock_timeout configured for the database or role
+    // query_canceled: our statement_timeout on the up-front LOCK, which fires
+    // at or after the deadline (a cancel requested by hand before then is not
+    // a timeout, and in the clean stage the statement_timeout is the session's
+    // own, not ours)
+    (error?.code === "57014" &&
+      progress.stage === "lock" &&
+      Date.now() >= deadline) ||
+    // lock_not_available: our lock_timeout in the clean stage, or a
+    // lock_timeout configured for the database or role
     error?.code === "55P03"
   )
 }
@@ -322,7 +362,7 @@ async function describeFailure(
     )
   }
 
-  if (!isTimeout(error, deadline)) return error
+  if (!isTimeout(error, deadline, progress)) return error
 
   const blockers = await lockHolders(cache, progress)
   const waitingFor =
