@@ -15,6 +15,27 @@ jobs:
       fail-fast: false
       matrix:
         node-version: [24, 26]
+    # for specs that need a database (cleanTestDb)
+    services:
+      postgres:
+        image: postgres:13
+        env:
+          POSTGRES_USER: dream_spec_helpers
+          POSTGRES_DB: dream_spec_helpers_test
+          POSTGRES_PASSWORD: postgres
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+    env:
+      DB_USER: dream_spec_helpers
+      DB_NAME: dream_spec_helpers_test
+      DB_HOST: localhost
+      DB_PASSWORD: postgres
+      DB_PORT: 5432
     steps:
       - uses: actions/checkout@v7
 
@@ -31,8 +52,15 @@ jobs:
       - name: Build
         run: pnpm build
 
+      # the build type-checks src/ only; this also checks spec/
+      - name: Type-check
+        run: pnpm typecheck
+
       - name: Lint
         run: pnpm lint
+
+      - name: Specs
+        run: pnpm spec
 
       - name: Check Node 24 runtime APIs and declarations
         if: matrix.node-version == 24
